@@ -46,7 +46,8 @@
  "3594ad3f": {
   "voice": "he-IL-Chirp3-HD-Puck",
   "text": "פחמן.",
-  "said": "пахма́н."
+  "said": "пахмАн.",
+  "pinned": true
  },
  "64c027ca": {
   "voice": "he-IL-Chirp3-HD-Puck",
