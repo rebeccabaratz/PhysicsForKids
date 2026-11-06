@@ -83,7 +83,7 @@ const T_HE = {
   prevScene: 'הסצנה הקודמת', nextScene: 'הסצנה הבאה', home: 'להתחלה', replay: 'להקשיב שוב', back: 'אחורה', fwd: 'קדימה', restartQ: 'להתחיל מההתחלה?', yes: 'כן', no: 'לא',
   twins: '1 → 2', hooray: 'יש!',
   appleLabel: 'חותכים תפוח',
-  appleAsk: 'איפה אלי?',
+  appleAsk: 'איפה אלי ???',
   cutCap: (n, s) => `(${s})`,
   stage: n => `שלב ${n} מתוך 5 · ${STAGE_HE[n]}`,
   a0: 'הנה תפוח ברוחב 8 סנטימטרים. בואו נחתוך אותו לשניים!',
