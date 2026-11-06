@@ -374,7 +374,8 @@ function say(text, o = {}) {
   return new Promise(r => {
     talk = { r, sp };
     if (sp) sp.classList.add('talk');
-    if (sp && sp === eli) hop(true);              // Эли ждёт нажатия: подпрыгивает (наверху — дрожит) else $('#btext').classList.add('tap');
+    if (sp && sp === eli) hop(true);              // Эли ждёт нажатия: подпрыгивает (наверху — дрожит)
+    if (!sp) $('#btext').classList.add('tap');    // говорящего нет на экране — ждём нажатия на сам текст
   });
 }
 function hideSay() { endTalk(); $('#btext').textContent = ''; }
