@@ -302,7 +302,7 @@ async function partA() {
   A.knife = sprite('knife', 'front'); setB(A.knife, L.apple * 0.62);
   put(A.piece, W / 2, L.appleY); layoutA();
   setCount(0);
-  hideSay();                                       // без текста: ножик светится и зовёт сам
+  say(T.appleAsk, { next: false });               // «Где Эли?» — а ножик светится и зовёт резать
   for (let i = 1; i <= P.MANUAL_CUTS; i++) {
     await knifeTap(0);
     await cutOnce(i);

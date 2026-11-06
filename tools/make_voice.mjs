@@ -33,6 +33,15 @@ const VOICES = {
   ru: { eli: 'eugene', atom: 'aidar', narrator: 'xenia' },
 };
 
+/* как произносить: правки текста только для голоса (на экране текст не меняется).
+   Иврит: голос читал «פוטון» как «фотун» — огласовки холам подсказывают «фотон».
+   Своё произношение (IPA) Google для he-IL не поддерживает, остаются огласовки. */
+const SAY_AS = {
+  he: [[/פוטו/g, 'פוֹטוֹ']],
+  ru: [],
+};
+const spoken = (lang, text) => SAY_AS[lang].reduce((t, [re, to]) => t.replace(re, to), text);
+
 /* ---------- тексты и ключ — прямо из файлов игры ---------- */
 const ctx = vm.createContext({ addEventListener() {}, window: {} });
 vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/texts.js'), 'utf8'), ctx);
@@ -43,7 +52,7 @@ const PASS_SCORE = Number(gameJs.match(/PASS_SCORE:\s*(\d+)/)[1]);
 
 function phrases(T) {                               // все фразы, которые игра произносит через say()
   const out = [], add = (who, ...texts) => texts.forEach(text => out.push({ who, text }));
-  add('narrator', T.cell, T.molecule);
+  add('narrator', T.appleAsk, T.cell, T.molecule);
   add('atom', T.atomHello, T.buildHelp, T.neutrons, T.allFound);
   add('eli', ...T.s1, T.s1uv, T.s1yellow, T.s1drop, T.s1uvout, T.s2end, T.s2rainbow, T.s3intro, T.s3hint, T.pass,
     T.s4b, T.s4laser, T.s4wrong, T.s4end, T.s5intro(PASS_SCORE), T.win, T.almost, T.teaser);
@@ -99,11 +108,13 @@ for (const lang of langs) {
   for (const { who, text } of phrases(T)) {
     const key = voiceKey(text), voice = VOICES[lang][who], file = path.join(dir, key + '.mp3');
     if (idx[key]) continue;                         // одинаковая фраза встречается дважды
-    idx[key] = { voice, text };
-    if (fs.existsSync(file) && old[key]?.voice === voice && !cutOff(file)) continue;
+    const said = spoken(lang, text);                // что уходит голосу (с правками произношения)
+    idx[key] = said === text ? { voice, text } : { voice, text, said };
+    const same = old[key] && old[key].voice === voice && (old[key].said ?? old[key].text) === said;
+    if (fs.existsSync(file) && same && !cutOff(file)) continue;
     process.stdout.write(`${lang} ${key} ${who}: ${text.slice(0, 50)}…\n`);
     for (let i = 1; i <= TRIES; i++) {
-      fs.writeFileSync(file, lang === 'he' ? await googleTts(text, voice) : await sileroTts(text, voice));
+      fs.writeFileSync(file, lang === 'he' ? await googleTts(said, voice) : await sileroTts(said, voice));
       if (!cutOff(file)) break;
       console.log(i < TRIES ? `   оборвана в конце, ещё раз (${i + 1})` : `   !!! всё ещё оборвана после ${TRIES} попыток — послушать`);
     }
