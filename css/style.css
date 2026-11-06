@@ -63,6 +63,10 @@ body{
 #btext:empty{display:none}
 #btext.tap{cursor:pointer}
 #sub{display:flex;align-items:center;gap:10px;min-height:16px;padding-inline:4px;font-size:13px;font-weight:500;color:var(--soft)}
+#replay{flex:0 0 auto;width:40px;height:40px;border-radius:50%;border:2px solid rgba(255,255,255,.35);background:rgba(20,24,70,.75);
+  color:#fff;display:grid;place-items:center;cursor:pointer;padding:0}
+#replay svg{width:22px;height:22px}
+[dir="rtl"] #replay svg{transform:scaleX(-1)}
 #label{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
 #score{display:flex;gap:6px}
 #score i{display:block;width:13px;height:13px;border-radius:50%;background:rgba(255,255,255,.2)}
@@ -193,3 +197,13 @@ button:focus-visible{outline:3px solid #fff;outline-offset:3px}
 @media (prefers-reduced-motion:reduce){
   .aura,.ball img,.ball.hint::before,#start img,.tappable,.shell,.bin.call,.pt.e.extra,.spr.talk,#atomw.talk,#cardov img{animation:none}
 }
+
+/* значок «Светящийся атом» на стартовом экране — если игра уже пройдена */
+#start #sbadge{width:72px;height:auto;animation:none;filter:drop-shadow(0 0 12px rgba(255,200,80,.7))}
+
+/* штрихкод Эли: тёмная полоска спектра (слева фиолетовый, справа красный), пойманные цвета горят линиями */
+#spectrum{position:absolute;left:16px;height:28px;z-index:6;border-radius:7px;border:2px solid rgba(255,255,255,.35);
+  background:linear-gradient(90deg,#2a1450,#14205a 18%,#0d4450 32%,#123f1c 46%,#4a4612 60%,#4c2a0e 75%,#421010);
+  box-shadow:0 0 12px rgba(120,150,255,.25)}
+.sline{position:absolute;top:2px;bottom:2px;width:6px;border-radius:3px;transform:translateX(-50%);background:var(--lc);opacity:0}
+.sline.on{opacity:1;box-shadow:0 0 8px var(--lc),0 0 16px var(--lc)}

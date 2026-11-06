@@ -14,7 +14,7 @@
 <div id="stage">
   <div id="top">
     <button id="prev" class="nav lbl" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M13 3 L6 10 L13 17" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="nl"></span></button>
-    <div id="tmid"><p id="btext"></p><div id="sub"><span id="label"></span><span id="score"></span></div></div>
+    <div id="tmid"><p id="btext"></p><div id="sub"><button id="replay" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5 H8 L13 5 V19 L8 14.5 H4 Z" fill="currentColor"/><path d="M16.5 8.5 a5 5 0 0 1 0 7 M19 6 a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button><span id="label"></span><span id="score"></span></div></div>
     <button id="next" class="nav lbl" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3 L14 10 L7 17" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="nl"></span></button>
     <button id="home" class="nav" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 9.5 L10 3.5 L17 9.5 M5 8 V16.5 H8.5 V12 H11.5 V16.5 H15 V8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
@@ -23,6 +23,7 @@
   <div id="start">
     <img src="img/eli_hello.webp" alt="">
     <h1 id="stitle"></h1>
+    <img id="sbadge" src="img/badge.webp" alt="" hidden>
     <p id="snote"></p>
     <button id="play" class="btn" type="button" disabled></button>
     <button id="skip" type="button"></button>
@@ -31,6 +32,8 @@
   </div>
 </div>
 
+<script src="js/texts.js"></script>
+<script src="js/sound.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

@@ -11,6 +11,7 @@
     AUTO_FLY_MS    — время полёта «показательного» мячика от края экрана, мс (2500)
     OUT_MS         — время, за которое вылетевший мячик пересекает ширину экрана, мс (4500)
     RIVER_MS       — время, за которое мячик в реке проплывает экран слева направо, мс (14000)
+    RIVER_FAST     — этап 3 без подсказок: доля RIVER_MS для заданий 1–4 — река ускоряется ([1, 0.8, 0.65, 0.55])
     LADDER_GAPS    — доли высоты лестницы для промежутков 1→2, 2→3, 3→4, 4→5 ([0.40, 0.30, 0.18, 0.12])
     LADDER_BOTTOM  — где 1-я ступенька, доля высоты экрана (0.80)
     TOP_RESERVE    — место сверху под облачко, доля высоты экрана (0.19)
@@ -18,7 +19,8 @@
     MANUAL_CUTS    — сколько разрезов ребёнок делает сам (4)
     TOTAL_CUTS     — всего разрезов до атома (30)
     APPLE_CM       — ширина яблока, см (8)
-    FAST_CUT_MS    — скорость автоматического резания, мс на разрез (140)
+    FAST_CUT_MS    — скорость быстрого резания, мс на разрез (140)
+    CUTS_PER_TAP   — сколько быстрых разрезов делает одно нажатие на ножик (3)
     STOP_TAP_MS    — через сколько ножик снова нажимается на остановках «клетка» и «молекула», мс (1000)
     BADGE_MS       — сколько растёт и сияет золотой значок в альбоме, мс (1800)
     DROP_DELAY_MS  — сколько Эли стоит наверху перед прыжком вниз, мс (1100)
@@ -61,6 +63,7 @@ const P = {
   AUTO_FLY_MS: 2500,
   OUT_MS: 4500,
   RIVER_MS: 14000,
+  RIVER_FAST: [1, 0.8, 0.65, 0.55],   // этап 3: во сколько раз быстрее плывёт река в заданиях 1–4 (меньше — быстрее)
   LADDER_GAPS: [0.40, 0.30, 0.18, 0.12],
   LADDER_BOTTOM: 0.80,
   TOP_RESERVE: 0.19,
@@ -69,6 +72,7 @@ const P = {
   TOTAL_CUTS: 30,
   APPLE_CM: 8,
   FAST_CUT_MS: 140,
+  CUTS_PER_TAP: 3,              // после ручных разрезов: сколько разрезов делает одно нажатие на ножик
   STOP_TAP_MS: 1000,
   BADGE_MS: 1800,
   DROP_DELAY_MS: 1100,
@@ -97,8 +101,7 @@ const P = {
   ],
 };
 
-/* ===================== ТЕКСТЫ (для перевода) ===================== */
-/* ===================== ЯЗЫК ===================== */
+/* ===================== ЯЗЫК (тексты — в js/texts.js) ===================== */
 /* По умолчанию — иврит. Адрес #ru / #ru-<сцена> — русский, #he / #he-<сцена> — иврит.
    Выбор на стартовом экране запоминается в этом браузере. */
 let LANG = 'he';
@@ -109,132 +112,6 @@ const HASH_SCENE = HM ? (HM[2] || '') : HASH0;
 document.documentElement.dir = LANG === 'he' ? 'rtl' : 'ltr';
 document.documentElement.lang = LANG;
 
-const STAGE_NAMES = ['', 'Смотрим', 'С подсказкой', 'Сам', 'Вниз', 'Проверка'];
-const T_RU = {
-  locale: 'ru-RU', units: ['см', 'мм', 'мкм', 'нм'], photonLabel: n => n + ' фотон',
-  title: 'Эли и фотон',
-  note: 'Игра про электрон Эли, свет и атомы',
-  loading: 'Загрузка…', play: 'Играть', skip: 'Сразу к «Собери атом» (для взрослых)', skip2: 'Сразу к Эли (для взрослых)',
-  buildLabel: 'Собери атом',
-  atomHello: 'Привет! Я Атом, крошечный кирпичик, из которых сделано всё: яблоко, вода и даже ты. В середине у меня ядро, у него плюс. Вокруг бегает электрон, у него минус. Плюс и минус тянутся друг к другу, поэтому электрон не улетает.',
-  buildHelp: 'Собери атом! Бери шарики из корзинок, а потом нажми на меня.',
-  allFound: 'Ура! Ты собрал все 8 атомов! А теперь в гости к электрону Эли.',
-  neutrons: 'Серые шарики — нейтроны. Они как клей: держат протоны вместе.',
-  elements: ['Водород', 'Гелий', 'Литий', 'Бериллий', 'Бор', 'Углерод', 'Азот', 'Кислород'],
-  addP: 'Взять протон', addE: 'Взять электрон', undo: 'Вернуть последний шарик', check: 'Проверить атом',
-  prevScene: 'Предыдущая сцена', nextScene: 'Следующая сцена', home: 'В начало', back: 'назад', fwd: 'вперёд', restartQ: 'Начать сначала?', yes: 'Да', no: 'Нет',
-  twins: '1 → 2', hooray: 'Ура!',
-  appleLabel: 'Режем яблоко',
-  cutCap: (n, s) => `(${s})`,                     // под цифрой разрезов — только размер кусочка
-  stage: n => `Этап ${n} из 5 · ${STAGE_NAMES[n]}`,
-  a0: 'Вот яблоко шириной 8 сантиметров. Давай разрежем его пополам! Нажми на ножик.',
-  a: [
-    '',
-    'Половинка — 4 см! Зелёный дружок её съел. Режь ещё!',
-    'Четвертинка — 2 см. Теперь съел оранжевый! Режь ещё!',
-    'Восьмушка — 1 см. Ещё разок!',
-    'Совсем крошка — 5 миллиметров, как горошина. Дальше наш волшебный ножик режет сам!',
-  ],
-  cell: 'Стоп! Это клетка. Яблоко сделано из крошечных клеток. Одна клетка в 10 раз тоньше волоса.',
-  molecule: 'Стоп! Это молекула. Клетки сделаны из молекул. Эта молекула — сахар, от неё яблоко сладкое.',
-  s1: [
-    'Привет! Я Эли, электрон. Ты разрезал яблоко 30 раз и нашёл меня!',
-    'Видишь лесенку? Я живу на ней. Мой дом — 1-я ступенька. Стоять я могу только на ступеньках, а между ними нельзя.',
-    'Я люблю прыгать по ступенькам! А помогают мне фотоны — мячики света.',
-  ],
-  s1uv: 'Ух! Это был невидимый фотон. Он очень сильный, поэтому поднял меня так высоко: первый прыжок — самый большой.',
-  s1home: 'С 1-й ступеньки цветные фотоны меня не поднимут, только невидимый. Поэтому с цветными фотонами мы будем играть со 2-й.',
-  s1yellow: 'Этот жёлтый фотон не мой! Он донёс бы меня туда, где нет ступеньки. Поэтому он пролетел мимо.',
-  s1red: 'А красный поднял меня со 2-й ступеньки на 3-ю!',
-  s1drop: 'Наверху долго не стоится. Я спрыгнул и выплюнул красный фотон: какой поймал, такой и отдал. Смотри, он летит куда захотел!',
-  s1uvout: 'А теперь я спрыгнул домой, на 1-ю ступеньку, и выпустил невидимый фотон. Видишь, как он мерцает?',
-  s2intro: 'Теперь твоя очередь! Мигающая ступенька — туда я хочу. Внизу проплывают фотоны: нажми на фотон, и он полетит ко мне. Нужный фотон светится.',
-  s2end: 'Заметил? Чем выше прыжок, тем сильнее фотон. Красный — самый слабый, фиолетовый — самый сильный.',
-  s2rainbow: 'Посмотри на мои ступеньки: красная, бирюзовая, фиолетовая — как в радуге! Только в моей радуге есть дырки: жёлтого и зелёного нет. Это мой секретный штрихкод!',
-  s3intro: 'А теперь без подсказки! Смотри, какая ступенька мигает, и выбирай фотон сам.',
-  s3hint: 'Давай ещё потренируемся. Нужный фотон снова светится.',
-  yay: (t, c) => `Ура, я на ${t}-й ступеньке! Сейчас спрыгну и выплюну ${c} фотон.`,
-  wrongStep: (m, t) => `Ой, этот фотон поднял меня на ${m}-ю ступеньку, а нужно на ${t}-ю. Попробуй другой!`,
-  pass: 'Этот фотон донёс бы меня туда, где нет ступеньки, и пролетел мимо. Попробуй другой!',
-  s4a: 'Сейчас красный фотон поднимет меня наверх. Смотри!',
-  s4b: 'Открою секрет! Если в меня попадёт такой же фотон, как тот, что меня поднял, я спрыгну вниз. Попробуй красный!',
-  s4laser: 'Видишь? Фотон подтолкнул меня и полетел дальше. А я спрыгнул и выпустил фотон-повторюшку! Он повторяет всё: цвет, куда лететь и даже как мигать. Был один — стало два! Так работает лазер.',
-  s4lift: c => `Сейчас меня поднимет ${c} фотон. Смотри!`,
-  s4ok: g => `Получилось! Летят два ${g} фотона — первый и повторюшка, рядышком и в ногу.`,
-  s4wrong: 'Этот фотон не подходит. Нужен такой же, как тот, что меня поднял. Попробуй другой!',
-  s4home: 'Получилось! Два невидимых фотона-повторюшки — а я дома, на 1-й ступеньке.',
-  s4end: 'Запомни: когда я спрыгиваю сам, фотон летит куда хочет. А когда меня подтолкнули, повторюшка летит вместе с первым!',
-  s5intro: n => `Последняя проверка! Подсказок нет. Смотри, какая ступенька мигает. Сделаешь правильно ${n} из 5 — получишь значок!`,
-  testOk: 'Правильно!',
-  testBad: c => `Не совсем. Здесь нужен был ${c} фотон.`,
-  win: 'Ты разобрался! Теперь ты знаешь, как атомы ловят и отдают свет. Держи значок «Светящийся атом»!',
-  almost: 'Почти! Давай ещё немного потренируемся.',
-  teaser: 'А знаешь, что будет, если в атоме много электронов и все прыгают сразу? Получится салют! Это будет в следующем мире.',
-};
-
-/* ---------- עברית (иврит). Обращение во множественном числе — нейтрально для мальчиков и девочек ---------- */
-const STAGE_HE = ['', 'צופים', 'עם רמז', 'לבד', 'למטה', 'בוחן'];
-const T_HE = {
-  locale: 'he-IL', units: ['ס"מ', 'מ"מ', 'מיקרומטר', 'ננומטר'], photonLabel: n => 'פוטון ' + n,
-  title: 'אלי והפוטון',
-  note: 'משחק על האלקטרון אלי, על אור ועל אטומים',
-  loading: 'טוען…', play: 'לשחק', skip: 'ישר ל"בונים אטום" (למבוגרים)', skip2: 'ישר לאלי (למבוגרים)',
-  buildLabel: 'בונים אטום',
-  atomHello: 'שלום! אני אטום, לבנה קטנטנה שממנה עשוי הכול: תפוח, מים ואפילו אתם. באמצע יש לי גרעין, והוא פלוס. מסביב רץ אלקטרון, והוא מינוס. פלוס ומינוס נמשכים זה אל זה, ולכן האלקטרון לא בורח.',
-  buildHelp: 'בנו אטום! קחו כדורים מהסלים.',
-  allFound: 'יש! בניתם את כל 8 האטומים! ועכשיו הולכים לבקר את האלקטרון אלי.',
-  neutrons: 'הכדורים האפורים הם נייטרונים. הם כמו דבק: מחזיקים את הפרוטונים יחד.',
-  elements: ['מימן', 'הליום', 'ליתיום', 'בריליום', 'בור', 'פחמן', 'חנקן', 'חמצן'],
-  addP: 'לקחת פרוטון', addE: 'לקחת אלקטרון', undo: 'להחזיר את הכדור האחרון', check: 'לבדוק את האטום',
-  prevScene: 'הסצנה הקודמת', nextScene: 'הסצנה הבאה', home: 'להתחלה', back: 'אחורה', fwd: 'קדימה', restartQ: 'להתחיל מההתחלה?', yes: 'כן', no: 'לא',
-  twins: '1 → 2', hooray: 'יש!',
-  appleLabel: 'חותכים תפוח',
-  cutCap: (n, s) => `(${s})`,
-  stage: n => `שלב ${n} מתוך 5 · ${STAGE_HE[n]}`,
-  a0: 'הנה תפוח ברוחב 8 סנטימטרים. בואו נחתוך אותו לשניים!',
-  a: [
-    '',
-    'חצי — 4 ס"מ! החבר הירוק אכל אותו. חתכו עוד!',
-    'רבע — 2 ס"מ. עכשיו אכל הכתום! חתכו עוד!',
-    'שמינית — 1 ס"מ. עוד פעם!',
-    'פירור קטנטן — 5 מילימטרים, כמו אפונה. מעכשיו הסכין הקסומה שלנו חותכת לבד!',
-  ],
-  cell: 'רגע! זה תא. התפוח עשוי מתאים קטנטנים. תא אחד דק פי 10 משערה.',
-  molecule: 'רגע! זו מולקולה. התאים עשויים ממולקולות. המולקולה הזו היא סוכר — בגללה התפוח מתוק.',
-  s1: [
-    'שלום! אני אלי, אלקטרון. חתכתם את התפוח 30 פעמים ומצאתם אותי!',
-    'רואים את הסולם? אני גר עליו. הבית שלי הוא מדרגה 1. אני יכול לעמוד רק על המדרגות, לא ביניהן.',
-    'אני אוהב לקפוץ על המדרגות! ועוזרים לי פוטונים — כדורי אור.',
-  ],
-  s1uv: 'וואו! זה היה פוטון בלתי נראה. הוא חזק מאוד, ולכן הקפיץ אותי כל כך גבוה: הקפיצה הראשונה היא הכי גדולה.',
-  s1home: 'ממדרגה 1 פוטונים צבעוניים לא מרימים אותי, רק פוטון בלתי נראה.',
-  s1yellow: 'הפוטון הצהוב הזה לא שלי! הוא היה מביא אותי למקום שאין בו מדרגה, ולכן הוא עף הלאה.',
-  s1red: 'והאדום הרים אותי ממדרגה 2 למדרגה 3!',
-  s1drop: 'למעלה אי אפשר להישאר הרבה זמן. קפצתי למטה וירקתי פוטון אדום: מה שתפסתי — את זה החזרתי. תראו, הוא עף לאן שהוא רוצה!',
-  s1uvout: 'ועכשיו קפצתי הביתה, למדרגה 1, ושחררתי פוטון בלתי נראה. רואים איך הוא מנצנץ?',
-  s2intro: 'עכשיו תורכם! המדרגה המהבהבת — לשם אני רוצה. למטה שטים פוטונים. הפוטון הנכון זוהר.',
-  s2end: 'שמתם לב? ככל שהקפיצה גבוהה יותר, הפוטון חזק יותר. האדום הכי חלש, הסגול הכי חזק.',
-  s2rainbow: 'תסתכלו על המדרגות שלי: אדומה, טורקיז, סגולה — כמו בקשת! רק שבקשת שלי יש חורים: אין צהוב ואין ירוק. זה הברקוד הסודי שלי!',
-  s3intro: 'ועכשיו בלי רמזים! תסתכלו איזו מדרגה מהבהבת, ובחרו פוטון לבד.',
-  s3hint: 'בואו נתאמן עוד קצת. הפוטון הנכון שוב זוהר.',
-  yay: (t, c) => `יש, אני על מדרגה ${t}! עוד מעט אקפוץ למטה ואירק פוטון ${c}.`,
-  wrongStep: (m, t) => `אוי, הפוטון הזה הרים אותי למדרגה ${m}, אבל צריך למדרגה ${t}. נסו פוטון אחר!`,
-  pass: 'הפוטון הזה היה מביא אותי למקום שאין בו מדרגה, ולכן עף הלאה. נסו פוטון אחר!',
-  s4a: 'עכשיו פוטון אדום ירים אותי למעלה. תראו!',
-  s4b: 'אגלה לכם סוד! אם יפגע בי פוטון בדיוק כמו זה שהרים אותי, אני אקפוץ למטה. נסו את האדום!',
-  s4laser: 'ראיתם? הפוטון דחף אותי והמשיך לעוף. ואני קפצתי למטה ושחררתי פוטון־חקיין! הוא מחקה הכול: את הצבע, את הכיוון ואפילו את ההבהוב. היה אחד — ונהיו שניים! ככה עובד לייזר.',
-  s4lift: c => `עכשיו פוטון ${c} ירים אותי. תראו!`,
-  s4ok: g => `הצלחתם! עפים שני פוטונים ${g} — הראשון והחקיין, צמודים ובאותו קצב.`,
-  s4wrong: 'הפוטון הזה לא מתאים. צריך בדיוק כמו זה שהרים אותי. נסו פוטון אחר!',
-  s4home: 'הצלחתם! שני פוטונים־חקיינים בלתי נראים — ואני בבית, על מדרגה 1.',
-  s4end: 'תזכרו: כשאני קופץ לבד, הפוטון עף לאן שהוא רוצה. וכשדוחפים אותי — החקיין עף יחד עם הראשון!',
-  s5intro: n => `הבוחן האחרון! בלי רמזים. תסתכלו איזו מדרגה מהבהבת. ${n} תשובות נכונות מתוך 5 — ותקבלו סמל!`,
-  testOk: 'נכון!',
-  testBad: c => `לא בדיוק. כאן היה צריך פוטון ${c}.`,
-  win: 'הבנתם! עכשיו אתם יודעים איך אטומים תופסים ומחזירים אור. הנה הסמל "אטום זוהר"!',
-  almost: 'כמעט! בואו נתאמן עוד קצת.',
-  teaser: 'ויודעים מה יקרה אם באטום יש הרבה אלקטרונים וכולם קופצים בבת אחת? יהיו זיקוקים! זה יהיה בעולם הבא.',
-};
 const T = LANG === 'he' ? T_HE : T_RU;
 
 function plural(n, one, few, many) {            // русское согласование: 1 разрез, 2 разреза, 5 разрезов
@@ -246,19 +123,15 @@ function plural(n, one, few, many) {            // русское согласо
 
 /* ===================== ФИЗИКА ===================== */
 const EN = n => -13.6 / (n * n);              // энергия ступеньки, эВ
-const PH = {                                   // мячики-фотоны
-  uv:     { E: 10.2, img: 'photon_uv',     css: '#e9e2ff', name: 'невидимый',   gen: 'невидимых' },
-  red:    { E: 1.89, img: 'photon_red',    css: '#ff4a4a', name: 'красный',     gen: 'красных' },
-  cyan:   { E: 2.55, img: 'photon_cyan',   css: '#3fdcff', name: 'бирюзовый',   gen: 'бирюзовых' },
-  violet: { E: 2.86, img: 'photon_violet', css: '#7a5cff', name: 'фиолетовый',  gen: 'фиолетовых' },
-  yellow: { E: 2.10, img: 'photon_yellow', css: '#ffe24a', name: 'жёлтый',      gen: 'жёлтых' },
-  green:  { E: 2.33, img: 'photon_green',  css: '#45e36a', name: 'зелёный',     gen: 'зелёных' },
+const PH = {                                   // мячики-фотоны; названия — в texts.js (T.photons)
+  uv:     { E: 10.2, img: 'photon_uv',     css: '#e9e2ff' },
+  red:    { E: 1.89, img: 'photon_red',    css: '#ff4a4a' },
+  cyan:   { E: 2.55, img: 'photon_cyan',   css: '#3fdcff' },
+  violet: { E: 2.86, img: 'photon_violet', css: '#7a5cff' },
+  yellow: { E: 2.10, img: 'photon_yellow', css: '#ffe24a' },
+  green:  { E: 2.33, img: 'photon_green',  css: '#45e36a' },
 };
-if (LANG === 'he') {                             // צבעי הפוטונים: יחיד / רבים
-  const HN = { uv: ['בלתי נראה', 'בלתי נראים'], red: ['אדום', 'אדומים'], cyan: ['טורקיז', 'טורקיז'],
-    violet: ['סגול', 'סגולים'], yellow: ['צהוב', 'צהובים'], green: ['ירוק', 'ירוקים'] };
-  for (const k in HN) { PH[k].name = HN[k][0]; PH[k].gen = HN[k][1]; }
-}
+for (const k in PH) [PH[k].name, PH[k].gen] = T.photons[k];
 const TOL = 0.06;
 function resolve(n, c) {                       // что сделает мячик c с Эли на ступеньке n
   const E = PH[c].E;
@@ -324,7 +197,7 @@ const mouthShut = el => { el.src = `img/${el._shut}.webp`; };
 /* рожица жуёт CHEW_TIMES раз: закрыт и открыт одинаковое время; в конце рот закрыт, рожица неподвижна */
 async function chew(el) {
   for (let i = 0; i < P.CHEW_TIMES && el.isConnected; i++) {
-    mouthShut(el);
+    mouthShut(el); sfx('chomp');
     const base = tf(el);
     el.animate([{ transform: base }, { transform: base + ' scale(1.04,.94)' }, { transform: base }], { duration: P.CHEW_FRAME_MS * K });
     await wait(P.CHEW_FRAME_MS);
@@ -350,9 +223,12 @@ function tag(text, x, y) {
 }
 function setLabel(t) { $('#label').textContent = t; }
 
-/* речь в верхней панели. next=true — ждём нажатия на того, кто говорит (Атом или Эли);
-   если говорящего на экране нет — на сам текст */
-let talk = null;
+/* речь в верхней панели, с озвучкой. next=true — фраза дозвучала, и через AFTER_VOICE_MS игра идёт дальше сама
+   (ребёнок играет один и не читает); нажатие на того, кто говорит (Атом или Эли), — сразу дальше.
+   Если озвучки нет (файла нет или звук ещё не разрешён) — ждём нажатия; говорящего на экране нет — нажатия на текст.
+   next=false — промис выполняется, когда фраза дозвучит (или сразу, если озвучки нет). */
+const AFTER_VOICE_MS = 700;
+let talk = null, sayText = '';
 function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
@@ -368,21 +244,27 @@ function endTalk() {
 function talkTap() { const r = endTalk(); if (r) { r(); return true; } return false; }
 function say(text, o = {}) {
   endTalk();
-  $('#btext').textContent = text;
-  if (!(o.next ?? true)) return Promise.resolve();
+  $('#btext').textContent = sayText = text; $('#replay').hidden = false;
+  if (!(o.next ?? true)) return playVoice(text).then(() => {});
   const sp = speaker();
   return new Promise(r => {
     talk = { r, sp };
     if (sp) sp.classList.add('talk');
-    if (sp && sp === eli) hop(true);              // Эли ждёт нажатия: подпрыгивает (наверху — дрожит)
+    if (sp && sp === eli) hop(true);              // Эли говорит: подпрыгивает (наверху — дрожит)
     if (!sp) $('#btext').classList.add('tap');    // говорящего нет на экране — ждём нажатия на сам текст
+    voiceThenGo(talk);
   });
 }
-function hideSay() { endTalk(); $('#btext').textContent = ''; }
+function voiceThenGo(t) {                         // озвучить текущую фразу; дозвучала — игра идёт дальше сама
+  playVoice(sayText).then(ok => {
+    if (ok && t && talk === t) wait(AFTER_VOICE_MS).then(() => { if (talk === t) talkTap(); });
+  });
+}
+function hideSay() { endTalk(); $('#btext').textContent = sayText = ''; $('#replay').hidden = true; }
 const tapOn = el => new Promise(r => el.addEventListener('click', () => r(), { once: true }));
 let FLASHED = false;
 async function flash() {
-  FLASHED = true;
+  FLASHED = true; sfx('whoosh');
   await $('#flash').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 350 * K, fill: 'forwards' }).finished;
 }
 async function unflash() {
@@ -420,8 +302,7 @@ async function partA() {
     await cutOnce(i);
   }
   hideSay();
-  await knifeTap(0);                               // дальше режем тоже нажатием на ножик, без кнопки
-  await fastCuts();
+  await fastCuts();                                // дальше режем тоже нажатием на ножик: за нажатие — несколько разрезов
 }
 async function knifeTap(delay) {                   // ножик светится и ждёт нажатия (через delay мс)
   await wait(delay);
@@ -436,7 +317,7 @@ async function cutOnce(i) {
   // 1/2, 1/4, 1/8 — свои картинки; дальше — та же восьмушка, но меньше
   const img = i <= 3 ? 'apple_' + 2 ** i : 'apple_8';
   const k = (A.piece._k || 1) * 0.86 * (i >= 4 ? 0.6 : 1);
-  setCount(i);
+  setCount(i); sfx('cut');
   A.piece.remove();
   const a = sprite(img), b = sprite(img); setB(a, L.apple); setB(b, L.apple);
   put(a, cx, L.appleY, k, 'scaleX(-1)'); put(b, cx, L.appleY, k);
@@ -453,22 +334,30 @@ async function fastCuts() {
   hideSay();
   const cx = W / 2, stops = { 13: ['cell', T.cell], 27: ['molecule', T.molecule] };
   const kn = A.knife; A.knifeBusy = true;
+  await knifeTap(0);
   await go(kn, { x: cx + L.apple * 0.08, y: L.appleY - L.apple * 0.5, ms: 260 });
-  for (let n = P.MANUAL_CUTS + 1; n <= P.TOTAL_CUTS; n++) {
-    setCount(n);
-    const base = tf(kn);
-    kn.animate([{ transform: base }, { transform: base + ` translateY(${L.apple * 0.6}px)` }, { transform: base }], { duration: P.FAST_CUT_MS * 0.9 * K });
-    go(A.piece, { k: A.piece._k * 0.88, ms: P.FAST_CUT_MS });
-    await wait(P.FAST_CUT_MS);
-    if (stops[n]) {
-      A.piece.remove();
-      A.piece = sprite(stops[n][0]); setB(A.piece, L.apple * 1.05); put(A.piece, cx, L.appleY, 0.15);
-      await go(A.piece, { k: 1, ms: 550, easing: 'cubic-bezier(.3,1.6,.5,1)' });
-      await say(stops[n][1], { next: false });
-      await knifeTap(P.STOP_TAP_MS);               // пауза, чтобы успеть разглядеть клетку / молекулу
-      hideSay();
+  let n = P.MANUAL_CUTS + 1, pause = 0;
+  while (n <= P.TOTAL_CUTS) {
+    if (n > P.MANUAL_CUTS + 1) { await knifeTap(pause); hideSay(); }   // каждое нажатие — CUTS_PER_TAP разрезов
+    pause = 0;
+    for (let c = 0; c < P.CUTS_PER_TAP && n <= P.TOTAL_CUTS; c++, n++) {
+      setCount(n); sfx('cut');
+      const base = tf(kn);
+      kn.animate([{ transform: base }, { transform: base + ` translateY(${L.apple * 0.6}px)` }, { transform: base }], { duration: P.FAST_CUT_MS * 0.9 * K });
+      go(A.piece, { k: A.piece._k * 0.88, ms: P.FAST_CUT_MS });
+      await wait(P.FAST_CUT_MS);
+      if (stops[n]) {
+        A.piece.remove();
+        A.piece = sprite(stops[n][0]); setB(A.piece, L.apple * 1.05); put(A.piece, cx, L.appleY, 0.15);
+        sfx('sparkle');
+        await go(A.piece, { k: 1, ms: 550, easing: 'cubic-bezier(.3,1.6,.5,1)' });
+        await say(stops[n][1], { next: false });   // ножик снова зовёт, когда фраза дозвучит
+        pause = P.STOP_TAP_MS;                     // пауза, чтобы успеть разглядеть клетку / молекулу
+        n++; break;
+      }
     }
   }
+  hideSay();
   await flash();
   for (const el of [A.monG, A.monO, A.piece, A.knife]) el.remove();
   $('#counter').hidden = true;
@@ -529,7 +418,7 @@ async function buildScene() {
   ['#binP', '#binE'].forEach(q => $(q).classList.add('call'));
   BS.busy = false;
   await new Promise(r => { BS.done = r; });        // ждём, пока откроют все 8
-  await say(T.allFound, { next: false }); await wait(2600);
+  await say(T.allFound, { next: false }); await wait(900);
   hideSay(); await flash(); root.remove(); BS = null;
 }
 
@@ -637,6 +526,7 @@ async function emptyAtom() {                       // все шарики из �
 }
 
 async function shakeAtom() {                       // атом неспокоен: дрожит секунду
+  sfx('oops');
   const xs = []; for (let i = 0; i < 12; i++) xs.push(i % 2 ? 6 : -6); xs.push(0);
   await $('#atomw').animate([{ transform: 'translateX(0)' }, ...xs.map(x => ({ transform: `translateX(${x}px)` }))], { duration: SHAKE_MS * K }).finished.catch(() => {});
 }
@@ -644,10 +534,10 @@ async function shakeAtom() {                       // атом неспокое�
 async function addParticle(kind) {
   if (!BS || BS.busy || BS.finished) return;
   const bin = $(kind === 'p' ? '#binP' : '#binE');
-  if (BS[kind] >= BIN) { nudge(bin); return; }
+  if (BS[kind] >= BIN) { nudge(bin); sfx('buzz'); return; }
   bin.classList.remove('call'); BS.busy = true;
   const ball = bin.children[BIN - 1 - BS[kind]], from = centerOf(ball);
-  ball.classList.add('gone');
+  ball.classList.add('gone'); sfx('pop');
   await fly(kind, from, atomTarget(kind), kind === 'p' ? 30 : BS.es);
   if (!BS) return;
   BS[kind]++; BS.hist.push(kind); renderAtom();
@@ -661,7 +551,7 @@ async function removeElectron(el) {             // нажали на лишни�
   const from = centerOf(el), h = BS.hist.lastIndexOf('e');
   if (h >= 0) BS.hist.splice(h, 1);
   const slot = $('#binE').children[BIN - BS.e];
-  BS.e--; renderAtom();
+  BS.e--; renderAtom(); sfx('fall');
   await fly('e', from, centerOf(slot), BS.es);
   syncBins(); BS.busy = false;
 }
@@ -670,7 +560,7 @@ async function undoParticle() {
   if (!BS || BS.busy || BS.finished || !BS.hist.length) return;
   const k = BS.hist.pop(); BS.busy = true;
   const bin = $(k === 'p' ? '#binP' : '#binE'), slot = bin.children[BIN - BS[k]];
-  const from = atomTarget(k); BS[k]--; renderAtom();
+  const from = atomTarget(k); BS[k]--; renderAtom(); sfx('fall');
   await fly(k, from, centerOf(slot), k === 'p' ? 28 : BS.es);
   syncBins(); BS.busy = false;
 }
@@ -684,13 +574,14 @@ async function checkAtom() {                       // нажали на атом
 
 async function atomDone() {
   const aw = $('#atomw'), z = BS.p, isNew = !BS.found.has(z);
+  sfx('sparkle');
   await aw.animate([{ filter: 'drop-shadow(0 0 0 #ffd45a)', transform: 'scale(1)' },
     { filter: 'drop-shadow(0 0 26px #ffd45a)', transform: 'scale(1.12)' },
     { filter: 'drop-shadow(0 0 0 #ffd45a)', transform: 'scale(1)' }], { duration: 1000 * K }).finished.catch(() => {});
   const slot = $('#album').children[z - 1];
   if (isNew) { BS.found.add(z); slot.classList.add('got'); slot.textContent = ELN[z - 1]; markDone('build'); }
   // значок в альбоме: растёт, дважды вспыхивает золотом и возвращается на место
-  slot.style.position = 'relative'; slot.style.zIndex = 3;
+  slot.style.position = 'relative'; slot.style.zIndex = 3; sfx('ding');
   const g = px => `drop-shadow(0 0 ${px}px #ffd45a) drop-shadow(0 0 ${px * 2}px rgba(255,200,60,.7))`;
   await slot.animate([
     { transform: 'scale(.5)', filter: g(0) },
@@ -710,7 +601,7 @@ function showCard(z) {
     const ov = document.createElement('div'); ov.id = 'cardov';
     ov.innerHTML = `<img src="img/card_${z}.webp" alt=""><h2></h2>`;   // карточка закрывается нажатием на неё
     ov.querySelector('h2').textContent = T.elements[z - 1];
-    stage.appendChild(ov);
+    stage.appendChild(ov); sfx('fanfare');
     ov.animate([{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 450 * K, easing: 'ease-out' });
     let closing = false; const t0 = performance.now();
     ov.onclick = async () => {
@@ -742,6 +633,7 @@ function buildAtom() {
   if (auraEl) { setB(auraEl, L.eli * 1.7); put(auraEl, L.cx, eliY(lvl)); }
   setTarget(curTarget);
   if (dreamEl) { setB(dreamEl, L.eli); put(dreamEl, L.cx, eliY(dreamEl._lvl)); }
+  if (spectrumOn) buildSpectrum();
 }
 const pose = p => { eli.src = `img/eli_${p}.webp`; };
 async function eliTo(n, ms = 500, easing = 'ease-out') {
@@ -784,6 +676,42 @@ function dream(n) {
 function undream() { if (dreamEl) { dreamEl.remove(); dreamEl = null; } }
 function ask(target, withDream) { setTarget(target); hop(true); if (withDream) dream(target); }
 function unask() { setTarget(null); hop(false); undream(); }
+
+/* --- штрихкод Эли: полоска-спектр, в которой загораются цвета, пойманные ребёнком (линии водорода) ---
+   Слева фиолетовый край спектра (400 нм), справа красный (700 нм). Пойманные цвета помнятся в этом браузере. */
+const LINE_NM = { violet: 434, cyan: 486, red: 656 };
+const BAR = new Set();
+try { JSON.parse(localStorage.getItem('eliBarcode') || '[]').forEach(c => BAR.add(c)); } catch (e) {}
+let spectrumOn = false;
+function buildSpectrum() {
+  let sp = $('#spectrum');
+  if (!sp) {
+    sp = document.createElement('div'); sp.id = 'spectrum'; stage.appendChild(sp);
+    for (const c in LINE_NM) {
+      const l = document.createElement('i'); l.className = 'sline'; l.dataset.c = c;
+      l.style.left = (LINE_NM[c] - 400) / 3 + '%'; l.style.setProperty('--lc', PH[c].css); sp.appendChild(l);
+    }
+  }
+  const w = Math.max(90, Math.min(170, L.cx - L.nuc / 2 - 40));
+  Object.assign(sp.style, { width: w + 'px', top: (L.nucY - 14) + 'px' });
+  sp.querySelectorAll('.sline').forEach(l => l.classList.toggle('on', BAR.has(l.dataset.c)));
+}
+async function catchLine(c) {                      // новый цвет: искорка летит от Эли в полоску, там загорается линия
+  if (!(c in LINE_NM) || BAR.has(c)) return;
+  BAR.add(c); try { localStorage.setItem('eliBarcode', JSON.stringify([...BAR])); } catch (e) {}
+  const sp = $('#spectrum'); if (!sp) return;
+  const l = sp.querySelector(`[data-c="${c}"]`), [tx, ty] = centerOf(l), d = document.createElement('div');
+  d.className = 'dot'; Object.assign(d.style, { width: '14px', height: '14px', background: PH[c].css, boxShadow: `0 0 14px ${PH[c].css}` });
+  stage.appendChild(d);
+  await d.animate([{ transform: `translate(${L.cx - 7}px,${eliY(lvl) - 7}px)` }, { transform: `translate(${tx - 7}px,${ty - 7}px)` }],
+    { duration: 700 * K, easing: 'ease-in' }).finished.catch(() => {});
+  d.remove(); l.classList.add('on'); sfx('ding');
+  l.animate([{ transform: 'translateX(-50%) scaleY(2.2)' }, { transform: 'translateX(-50%) scaleY(1)' }], { duration: 500 * K, easing: 'ease-out' });
+  if (BAR.size === Object.keys(LINE_NM).length) {  // все три — штрихкод собран
+    sfx('fanfare', 250);
+    sp.animate([{ filter: 'none' }, { filter: 'drop-shadow(0 0 16px #fff) brightness(1.6)' }, { filter: 'none' }], { duration: 1400 * K });
+  }
+}
 
 /* --- мячики в полёте: хвостик, мигание в такт, вылет за край --- */
 function ball(c, x, y) { const b = sprite(PH[c].img, 'front'); setB(b, L.ph); put(b, x, y); return b; }
@@ -853,6 +781,7 @@ function growFromMouth(c, at) {                  // мячик-картинка,
 async function emit(c, n2, text) {
   hop(false); pose('blow');
   const m = mouthAt(P.MOUTH_BLOW, lvl), b = growFromMouth(c, m);
+  sfx('pop');
   await go(b, { k: 1, ms: P.SPIT_MS, easing: 'ease-out' });
   unglow();
   const need = 0.55 * Math.min(W, H);
@@ -864,7 +793,7 @@ async function emit(c, n2, text) {
   const stop = trail(b, c); if (c === 'uv') pulse([b]);
   flyOut(b, dx, dy).then(stop);
   const said = text ? say(text) : null;
-  await eliTo(n2, 450, 'ease-in'); pose('hello');
+  sfx('fall'); await eliTo(n2, 450, 'ease-in'); pose('hello');
   if (talk && talk.sp === eli) hop(true);          // фраза ждёт нажатия — снова подпрыгивает
   if (n2 === 2) holdGlow('uv');                  // на 2-й он всё ещё «держит» невидимый мячик
   if (said) await said; else await wait(700);
@@ -876,7 +805,7 @@ async function dropToTwo(text) {
 }
 async function dropHome(text) { if (lvl !== 2) return; await wait(500); await emit('uv', 1, text); }
 
-async function hit(c, fx, fy, ms = P.FLY_MS) {   // мячик c летит в Эли из точки (fx,fy)
+async function hit(c, fx, fy, ms = P.FLY_MS, demo = false) {   // мячик c летит в Эли из точки (fx,fy); demo — показ, не ребёнок
   const r = resolve(lvl, c), heldBefore = eli.style.filter, poseBefore = eli.src;
   const b = ball(c, fx, fy), stop = trail(b, c);
   if (c === 'uv') pulse([b]);
@@ -895,28 +824,30 @@ async function hit(c, fx, fy, ms = P.FLY_MS) {   // мячик c летит в �
     await go(b, { x: fx + dx * near, y: fy + dy * near, ms: ms * near / len, easing: 'linear' });
     hop(false); pose('open');
     await go(b, { x: tx, y: ty, k: 0.2, ms: P.SWALLOW_MS, easing: 'ease-in' }); stop(); b.remove();
-    pose('full'); holdGlow(c); await wait(450);
-    pose('jump'); await eliTo(r.to, 650); await wait(250); restPose(r.to);
+    sfx('gulp'); pose('full'); holdGlow(c); await wait(450);
+    pose('jump'); sfx('rise'); await eliTo(r.to, 650); await wait(250); restPose(r.to);
+    if (!demo) await catchLine(c);
   } else if (r.type === 'down') {
     // вынужденный: мячик задевает Эли, повторюшка медленно вырастает изо рта, оба летят рядом и в ногу
     await go(b, { x: tx, y: ty, ms, easing: 'linear' }); hop(false);
-    pose('blow'); shine();
+    pose('blow'); shine(); sfx('pop');
     const tw = growFromMouth(c, mb), stop2 = trail(tw, c), crawl = L.ph * 0.5;
     await Promise.all([
       go(b, { x: tx + dx * crawl, y: ty + dy * crawl, ms: P.SPIT_MS, easing: 'linear' }),
       go(tw, { x: mb.x + dx * crawl, y: mb.y + dy * crawl, k: 1, ms: P.SPIT_MS, easing: 'ease-out' })]);
     pulse([b, tw]); unglow(); tag(T.twins, L.cx + L.eli * 0.6, eliY(lvl) - L.eli * 0.35);
+    sfx('fall');
     await Promise.all([eliTo(r.to, 600, 'ease-in'), flyOut(b, dx, dy), flyOut(tw, dx, dy)]);
     stop(); stop2(); pose('hello'); if (r.to === 2) holdGlow('uv');
   } else {                                       // пролетел мимо — дальше по той же прямой
     await go(b, { x: tx, y: ty, ms, easing: 'linear' }); hop(false);
-    pose('surprised'); ghost(r.reach, c);
+    pose('surprised'); ghost(r.reach, c); sfx('boing');
     await flyOut(b, dx, dy, ms * W / len); stop();
     await wait(300); eli.src = poseBefore; eli.style.filter = heldBefore;
   }
   return r;
 }
-const fromLeft = c => hit(c, -L.ph, eliY(lvl), P.AUTO_FLY_MS);
+const fromLeft = c => hit(c, -L.ph, eliY(lvl), P.AUTO_FLY_MS, true);
 async function demo(c, target) {                 // показ на этапе 1: цель мигает, силуэт, потом мячик
   hideSay();
   if (target) { ask(target, true); await wait(1500); }
@@ -933,7 +864,7 @@ async function downHome(text = '') {              // задание этапа �
     ask(1, false);
     const { c, x, y } = await river(['red', 'uv', 'cyan']);
     const r = await hit(c, x, y);
-    if (r.type === 'down' && r.to === 1) { unask(); hideSay(); await wait(900); return; }   // два мерцающих фотона видны и без слов
+    if (r.type === 'down' && r.to === 1) { unask(); hideSay(); sfx('ding'); await wait(900); return; }   // два мерцающих фотона видны и без слов
     hop(false);
     if (r.type === 'up') await dropToTwo();
     await say(T.s4wrong, { next: false });
@@ -941,7 +872,7 @@ async function downHome(text = '') {              // задание этапа �
 }
 
 /* --- река света: мячики плывут слева направо по кругу --- */
-let riv = null;
+let riv = null, riverK = 1;                     // riverK < 1 — река плывёт быстрее
 function clearRiver() { if (riv) { cancelAnimationFrame(riv.raf); riv.items.forEach(it => it.el.remove()); riv = null; } }
 function river(colors, hint) {
   clearRiver();
@@ -955,7 +886,7 @@ function river(colors, hint) {
     riv = { items, raf: 0, t0: performance.now() };
     const frame = now => {
       if (!riv) return;
-      const span = W + L.tap, prog = (now - riv.t0) / (P.RIVER_MS * K);
+      const span = W + L.tap, prog = (now - riv.t0) / (P.RIVER_MS * K * riverK);
       for (const it of items) {
         it.x = -L.tap / 2 + ((it.f + prog) % 1) * span;
         it.el.style.width = it.el.style.height = L.tap + 'px';
@@ -965,7 +896,7 @@ function river(colors, hint) {
       riv.raf = requestAnimationFrame(frame);
     };
     frame(riv.t0);
-    items.forEach(it => it.el.onclick = () => { const x = it.x, y = L.riverY; clearRiver(); res({ c: it.c, x, y }); });
+    items.forEach(it => it.el.onclick = () => { const x = it.x, y = L.riverY; sfx('tap'); clearRiver(); res({ c: it.c, x, y }); });
   });
 }
 
@@ -978,7 +909,7 @@ async function upTask(target, colors, hint, withDream, text = '') {
     const { c, x, y } = await river(colors, hint ? right : null);
     const r = await hit(c, x, y);
     if (r.type === 'up' && r.to === target) {
-      unask(); tag(T.hooray, L.cx, eliY(lvl) - L.eli * 0.7);
+      unask(); tag(T.hooray, L.cx, eliY(lvl) - L.eli * 0.7); sfx('ding');
       hideSay();                                  // без «Ура, я на N-й ступеньке»: видно и так
       await dropToTwo(); await wait(300); hideSay(); return;
     }
@@ -997,7 +928,7 @@ async function downTask(from, colors, o = {}) {
     ask(2, o.dream);
     const { c, x, y } = await river(colors);
     const r = await hit(c, x, y);
-    if (r.type === 'down' && r.to === 2) { unask(); say(T.s4ok(PH[lc].gen), { next: false }); await wait(1800); hideSay(); return; }
+    if (r.type === 'down' && r.to === 2) { unask(); sfx('ding'); await say(T.s4ok(PH[lc].gen), { next: false }); await wait(900); hideSay(); return; }
     hop(false);
     await say(T.s4wrong, { next: false });
   }
@@ -1028,12 +959,12 @@ async function testTask(t, i) {
   // без надписи: верно — Эли радостно подпрыгивает и вспыхивает; неверно — удивляется и «мотает головой»
   hideSay();
   if (ok) {
-    pose('jump'); shine();
+    pose('jump'); shine(); sfx('ding');
     const b = tf(eli);
     await eli.animate([{ transform: b }, { transform: b + ' translateY(-28px) scale(1.08)' }, { transform: b }, { transform: b + ' translateY(-14px)' }, { transform: b }],
       { duration: 900 * K, easing: 'ease-out' }).finished.catch(() => {});
   } else {
-    pose('surprised');
+    pose('surprised'); sfx('oops');
     const b = tf(eli);
     await eli.animate([0, -10, 10, -10, 10, -6, 0].map(x => ({ transform: b + ` translateX(${x}px) rotate(${x * 0.6}deg)` })),
       { duration: 900 * K, easing: 'ease-in-out' }).finished.catch(() => {});
@@ -1105,6 +1036,7 @@ async function planetIntro(afterFlash) {
 
 async function ensureAtom() {                    // сцена Эли, запущенная сама по себе: атом и Эли на 1-й ступеньке
   if (phase !== 'atom') { measure(); phase = 'atom'; lvl = 1; buildAtom(); pose('hello'); }
+  spectrumOn = true; buildSpectrum();              // с этапа 2 ребёнок ловит фотоны сам — виден штрихкод
   if (FLASHED) await unflash();
 }
 
@@ -1133,10 +1065,12 @@ async function eliStage2() {                     // Этап 2 — с подск
 
 async function stage3(hints) {                   // Этап 3 — сам (при повторной тренировке — с подсказками и силуэтом)
   setLabel(T.stage(3));
-  await liftToTwo(hints, ['violet', 'red', 'uv'], hints ? T.almost : T.s2rainbow);
-  await upTask(4, ['red', 'cyan', 'yellow'], hints, hints, hints ? T.s3hint : T.s3intro);
-  await upTask(3, ['green', 'red', 'violet'], hints, hints);
-  await upTask(5, ['cyan', 'violet', 'yellow'], hints, hints);
+  const fast = i => { riverK = hints ? 1 : P.RIVER_FAST[i]; };   // без подсказок река с каждым заданием быстрее
+  fast(0); await liftToTwo(hints, ['violet', 'red', 'uv'], hints ? T.almost : T.s2rainbow);
+  fast(1); await upTask(4, ['red', 'cyan', 'yellow'], hints, hints, hints ? T.s3hint : T.s3intro);
+  fast(2); await upTask(3, ['green', 'red', 'violet'], hints, hints);
+  fast(3); await upTask(5, ['cyan', 'violet', 'yellow'], hints, hints);
+  riverK = 1;
   hideSay(); await dropHome();
 }
 async function eliStage3() { await ensureAtom(); await stage3(false); }
@@ -1176,22 +1110,25 @@ async function eliStage5() {                     // Этап 5 — провер�
   pose('medal'); bounce(eli, 1.12, 0.9);
   const badge = sprite('badge', 'front'); setB(badge, Math.min(W * 0.42, H * 0.22));
   put(badge, W / 2, H * 0.47, 0.1, 'rotate(-180deg)');
+  sfx('fanfare');
   await go(badge, { k: 1, ex: 'rotate(0deg)', ms: 800, easing: 'cubic-bezier(.3,1.5,.5,1)' });
   await say(T.win);
   await say(T.teaser);
+  try { localStorage.setItem('eliBadge', '1'); localStorage.removeItem('eliNext'); } catch (e) {}
   markDone('eli5'); goScene(-1);                 // на стартовый экран
 }
 
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
-   Пройденные сцены помнятся, пока открыта вкладка (sessionStorage). */
+   Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
+   «Играть» продолжает со сцены, следующей за последней законченной; после финала — снова с начала. */
 const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5'];
 const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5 };
 let cur = -1;
 const DONE = new Set();
-try { JSON.parse(sessionStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
-function markDone(n) { DONE.add(n); try { sessionStorage.setItem('eliDone', JSON.stringify([...DONE])); } catch (e) {} updNav(); }
+try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
+function markDone(n) { DONE.add(n); try { localStorage.setItem('eliDone', JSON.stringify([...DONE])); } catch (e) {} updNav(); }
 function updNav() {
   $('#prev').disabled = cur < 0;
   $('#next').disabled = !(cur >= 0 && cur < SCENES.length - 1 && DONE.has(SCENES[cur]));
@@ -1204,6 +1141,7 @@ async function runFrom(name) {
     cur = i; location.hash = LANG + '-' + SCENES[i]; updNav();
     await SCENE_FN[SCENES[i]]();
     markDone(SCENES[i]);
+    try { localStorage.setItem('eliNext', SCENES[i + 1] || ''); } catch (e) {}
   }
 }
 
@@ -1243,6 +1181,8 @@ $('#home').onclick = () => {                     // «в начало» — с �
   stage.appendChild(ov); no.focus({ preventScroll: true });
 };
 $('#btext').onclick = () => { if ($('#btext').classList.contains('tap')) talkTap(); };
+$('#replay').setAttribute('aria-label', T.replay);
+$('#replay').onclick = () => voiceThenGo(talk);  // ещё раз озвучить текущую фразу
 document.querySelectorAll('.lang').forEach(b => {
   b.classList.toggle('on', b.dataset.l === LANG);
   b.onclick = () => {
@@ -1253,11 +1193,15 @@ document.querySelectorAll('.lang').forEach(b => {
 });
 updNav();
 const startHash = HASH_SCENE;
-if (SCENES.includes(startHash)) $('#start').hidden = true;   // открыли сцену по адресу — сразу в неё
+try { $('#sbadge').hidden = localStorage.getItem('eliBadge') !== '1'; } catch (e) {}
+// открыли сцену по адресу (после ◀ ▶) — только кнопка «Играть»: касание нужно, чтобы браузер включил звук
+if (SCENES.includes(startHash)) ['#snote', '#skip', '#skip2', '#langs', '#sbadge'].forEach(q => { $(q).hidden = true; });
+preloadVoices(LANG);
 preload().then(() => {
-  if (SCENES.includes(startHash)) { runFrom(startHash); return; }
   const play = $('#play'); play.disabled = false; play.textContent = T.play; play.focus({ preventScroll: true });
-  play.onclick = () => runFrom(P.START === 'atom' ? 'eli1' : 'apple');
+  if (SCENES.includes(startHash)) { play.onclick = () => runFrom(startHash); return; }
+  let next = ''; try { next = localStorage.getItem('eliNext') || ''; } catch (e) {}
+  play.onclick = () => runFrom(SCENES.includes(next) ? next : (P.START === 'atom' ? 'eli1' : 'apple'));
   $('#skip').onclick = () => runFrom('build');
   $('#skip2').onclick = () => runFrom('eli1');
 });
