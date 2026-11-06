@@ -23,12 +23,12 @@
 </head>
 <body>
 <h1>Озвучка «Эли и фотон»: все фразы</h1>
-<div class="langs"><button data-l="he">עברית</button><button data-l="ru">Русский</button><button data-l="samples">Варианты произношения</button></div>
+<div class="langs"><button data-l="he">עברית</button><button data-l="ru">Русский</button><button data-l="samples">Варианты произношения</button><button data-l="takes">Дубли</button></div>
 <ol id="list"></ol>
 <script>
 // Список берётся из audio/<язык>/index.json — его пишет tools/make_voice.mjs.
 const player = new Audio();
-let lang = ['ru', 'samples'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'he';
+let lang = ["ru", "samples", "takes"].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'he';
 async function show() {
   document.querySelectorAll('.langs button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
   const idx = await (await fetch(`../audio/${lang}/index.json`, { cache: 'reload' })).json();

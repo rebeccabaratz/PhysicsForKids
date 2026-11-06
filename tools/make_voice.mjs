@@ -5,6 +5,12 @@
    Озвучиваются только новые фразы и фразы, у которых сменился голос; лишние файлы удаляются.
    После правки текста в js/texts.js или голоса в VOICES — просто запустить снова.
 
+   Дубли (голос Google каждый раз читает чуть по-разному — например, ставит ударение не туда):
+     node tools/make_voice.mjs he --takes 11,13 [--count 3]   → по 3 дубля фраз № 11 и № 13 в audio/takes
+                                                                (номера — как на странице tools/listen.html;
+                                                                послушать — вкладка «Дубли»)
+     node tools/make_voice.mjs he --pick 11=2,13=1             → поставить в игру выбранные дубли
+
    Иврит — Google Cloud Text-to-Speech, голоса Chirp 3 HD (нужен gcloud: `gcloud auth login`,
           проект с включённым texttospeech.googleapis.com — PROJECT ниже).
    Русский — локальный сервер Silero из проекта BaratzNew (C:\BaratzNew\web: npm run tts:server),
@@ -43,7 +49,10 @@ const SAY_AS = {
   he: [
     [/פוטו/g, 'פוטוֹ'],                            // «фотун» → «фотон»: холам на последнем слоге (вариант foton3)
     [/אטו(?=[םמ])/g, 'אטוֹ'],                       // «атум» → «атом»: אטום, האטומים, באטום
-    [/הכול/g, 'הכוֹל'],                           // «акуль» → «аколь»: холам на вав (варианты kol1–kol3)
+    [/הכול/g, 'הכוֹל'],
+    [/־חקיין/g, ' חקיין'],                         // «פוטון־חקיין» — голос сливал в одно слово
+    [/חקיין/g, 'חַקְיָן'],                          // «хакЕйн» → «хакьЯн»
+    [/זוהר/g, 'זוֹהֵר'],                            // «зОар» → «зоЭр»                           // «акуль» → «аколь»: холам на вав (варианты kol1–kol3)
     [/^איפה אלי\?$/, 'איפה Eli ???'],            // ивритом голос читал «элИ» и не спрашивал
     [/האלקטרון אלי(?![א-ת])/g, 'האלקטרון Elli'],   // фраза № 7: «Elli» — выбрано на слух
     [/(?<![א-ת])אלי(?![א-ת])/g, 'Ellie'], // имя: ивритом «элИ», «Eli» — по-английски «Или»; «Ellie» = «Эли»
@@ -116,7 +125,17 @@ function problem(file, text) {
 }
 
 /* ---------- основной проход ---------- */
-const langs = process.argv.slice(2).length ? process.argv.slice(2) : ['he', 'ru'];
+const argv = process.argv.slice(2), opt = name => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : null; };
+const TAKES = opt('--takes'), PICK = opt('--pick'), COUNT = Number(opt('--count') || 3);
+const langs = argv.filter(a => /^(he|ru)$/.test(a)).length ? argv.filter(a => /^(he|ru)$/.test(a)) : ['he', 'ru'];
+async function synth(lang, said, voice, file) {     // озвучить с проверкой на брак (до TRIES попыток)
+  for (let i = 1; i <= TRIES; i++) {
+    fs.writeFileSync(file, lang === 'he' ? await googleTts(said, voice) : await sileroTts(said, voice));
+    const bad = problem(file, said);
+    if (!bad) return;
+    console.log(i < TRIES ? `   ${bad}, ещё раз (${i + 1})` : `   !!! ${bad} после ${TRIES} попыток — послушать`);
+  }
+}
 for (const lang of langs) {
   const T = vm.runInContext(lang === 'he' ? 'T_HE' : 'T_RU', ctx), dir = path.join(ROOT, 'audio', lang);
   fs.mkdirSync(dir, { recursive: true });
@@ -132,16 +151,34 @@ for (const lang of langs) {
     const same = old[key] && old[key].voice === voice && (old[key].said ?? old[key].text) === said;
     if (fs.existsSync(file) && same && !problem(file, said)) continue;
     process.stdout.write(`${lang} ${key} ${who}: ${text.slice(0, 50)}…\n`);
-    for (let i = 1; i <= TRIES; i++) {
-      fs.writeFileSync(file, lang === 'he' ? await googleTts(said, voice) : await sileroTts(said, voice));
-      const bad = problem(file, said);
-      if (!bad) break;
-      console.log(i < TRIES ? `   ${bad}, ещё раз (${i + 1})` : `   !!! ${bad} после ${TRIES} попыток — послушать`);
-    }
+    await synth(lang, said, voice, file);
     made++;
   }
   let removed = 0;
   for (const f of fs.readdirSync(dir)) if (f.endsWith('.mp3') && !idx[f.slice(0, -4)]) { fs.unlinkSync(path.join(dir, f)); removed++; }
   fs.writeFileSync(idxFile, JSON.stringify(idx, null, 1) + '\n');
   console.log(`${lang}: фраз ${Object.keys(idx).length}, озвучено заново ${made}, удалено старых ${removed}`);
+
+  // дубли: номера фраз — порядок в index.json (как на странице прослушки)
+  const keys = Object.keys(idx), byNum = n => { const k = keys[n - 1]; if (!k) throw new Error(`нет фразы № ${n}`); return k; };
+  const tdir = path.join(ROOT, 'audio', 'takes'), tidxFile = path.join(tdir, 'index.json');
+  if (TAKES) {
+    fs.rmSync(tdir, { recursive: true, force: true }); fs.mkdirSync(tdir, { recursive: true });
+    const tidx = {};
+    for (const n of TAKES.split(',').map(Number)) {
+      const key = byNum(n), { voice, text, said = text } = idx[key];
+      for (let j = 1; j <= COUNT; j++) {
+        console.log(`дубль № ${n}.${j}: ${text.slice(0, 40)}`);
+        await synth(lang, said, voice, path.join(tdir, `${key}_${j}.mp3`));
+        tidx[`${key}_${j}`] = { voice: `№ ${n} — дубль ${j}`, text, said };
+      }
+    }
+    fs.writeFileSync(tidxFile, JSON.stringify(tidx, null, 1) + '\n');
+  }
+  if (PICK) for (const pair of PICK.split(',')) {   // выбранный дубль → в игру
+    const [n, j] = pair.split('=').map(Number), key = byNum(n), src = path.join(tdir, `${key}_${j}.mp3`);
+    if (!fs.existsSync(src)) throw new Error(`нет дубля № ${n}.${j}`);
+    fs.copyFileSync(src, path.join(dir, key + '.mp3'));
+    console.log(`№ ${n}: в игре дубль ${j}`);
+  }
 }
