@@ -39,7 +39,7 @@ const VOICES = {
 const SAY_AS = {
   he: [
     [/פוטו/g, 'פוטוֹ'],                            // «фотун» → «фотон»: холам на последнем слоге (вариант foton3)
-    [/^איפה אלי\?$/, 'eyfo eli ?'],               // ивритом голос читал «элИ» и не спрашивал
+    [/^איפה אלי\?$/, 'איפה Eli ???'],            // ивритом голос читал «элИ» и не спрашивал
     [/(?<![א-ת])אלי(?![א-ת])/g, 'Eli'],   // имя: ивритом «элИ» (как «ко мне») → Eli (вариант eli3)
   ],
   ru: [],
@@ -56,7 +56,8 @@ const PASS_SCORE = Number(gameJs.match(/PASS_SCORE:\s*(\d+)/)[1]);
 
 function phrases(T) {                               // все фразы, которые игра произносит через say()
   const out = [], add = (who, ...texts) => texts.forEach(text => out.push({ who, text }));
-  add('narrator', T.appleAsk, T.cell, T.molecule);
+  add('narrator', T.cell, T.molecule);
+  add('eli', T.appleAsk);                           // «Где Эли?» — мужским голосом (женский рассказчик звучал с акцентом)
   add('atom', T.atomHello, T.buildHelp, T.neutrons, T.allFound);
   add('eli', ...T.s1, T.s1uv, T.s1yellow, T.s1drop, T.s1uvout, T.s2end, T.s2rainbow, T.s3intro, T.s3hint, T.pass,
     T.s4b, T.s4laser, T.s4wrong, T.s4end, T.s5intro(PASS_SCORE), T.win, T.almost, T.teaser);
