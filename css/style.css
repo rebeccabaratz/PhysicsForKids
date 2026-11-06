@@ -207,3 +207,17 @@ button:focus-visible{outline:3px solid #fff;outline-offset:3px}
   box-shadow:0 0 12px rgba(120,150,255,.25)}
 .sline{position:absolute;top:2px;bottom:2px;width:6px;border-radius:3px;transform:translateX(-50%);background:var(--lc);opacity:0}
 .sline.on{opacity:1;box-shadow:0 0 8px var(--lc),0 0 16px var(--lc)}
+
+/* мини-игра «Лазер»: луч и мишень */
+.lbeam{position:absolute;height:10px;z-index:13;border-radius:5px;transform-origin:0 50%;pointer-events:none;
+  background:linear-gradient(180deg,#ffd0d0,#ff2b2b 40%,#ff2b2b 60%,#ffd0d0);box-shadow:0 0 14px #ff3b3b,0 0 34px #ff2020,0 0 60px rgba(255,40,40,.6)}
+.ltarget{position:absolute;z-index:12;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,#fff 0 12%,#ff4a4a 13% 30%,#fff 31% 46%,#ff4a4a 47% 64%,#fff 65% 80%,#ff4a4a 81%);
+  box-shadow:0 0 16px rgba(255,80,80,.7)}
+
+/* дети не читают: фразы только голосом (P.SHOW_TEXT=false) */
+.notext #btext,.notext #label{display:none}
+/* «Где Эли?» — крупно посередине вверху, пока режем яблоко */
+#ask{position:absolute;left:16px;right:16px;top:54px;z-index:20;text-align:center;pointer-events:none;line-height:1;
+  font:800 clamp(30px,9vw,44px) var(--font);color:#fff;text-shadow:0 0 22px rgba(76,194,255,.8),0 3px 0 rgba(0,0,0,.35);
+  animation:bob 2.4s ease-in-out infinite}

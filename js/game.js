@@ -32,6 +32,9 @@
     SPIT_MS        — как долго мячик вырастает изо рта при выплёвывании, мс (700)
     CHEW_FRAME_MS  — длительность кадра жевания (рот закрыт = рот открыт), мс (300)
     CHEW_TIMES     — сколько раз рожица жуёт (2)
+    LASER_ATOMS    — мини-игра «Лазер» (этап 4): сколько маленьких Эли (5)
+    LASER_MS       — мини-игра «Лазер»: за сколько мс строй фотонов пролетает ширину экрана (3500)
+    SHOW_TEXT      — показывать ли фразы текстом вверху (false: только голос; true — для взрослых/отладки)
     PLANET_MS      — сколько вращается и наклоняется планетарный атом, мс (4500)
     RING_SIZES     — радиусы колец 1–5 в планетарном атоме, доля самого большого
     MOUTH_OPEN, MOUTH_BLOW — положение рта на картинках Эли (доли картинки)
@@ -85,6 +88,9 @@ const P = {
   SPIT_MS: 700,
   CHEW_FRAME_MS: 300,
   CHEW_TIMES: 2,
+  LASER_ATOMS: 5,               // мини-игра «Лазер»: сколько маленьких Эли
+  LASER_MS: 3500,               // мини-игра «Лазер»: за сколько мс строй фотонов пролетает ширину экрана
+  SHOW_TEXT: false,             // показывать ли фразы текстом (дети не читают: только голос; «Где Эли?» — всегда)
   PLANET_MS: 4500,              // сколько вращается и наклоняется планетарный атом
   RING_SIZES: [0.18, 0.34, 0.54, 0.76, 1.0],   // радиусы колец 1–5 (доля самого большого)
   MOUTH_OPEN: [0.50, 0.55],   // где рот на картинке «рот открыт» (доли ширины и высоты)
@@ -264,6 +270,8 @@ function voiceThenGo(t, interrupt = false) {      // озвучить текущ
     if (ok) { wait(AFTER_VOICE_MS).then(() => { if (talk === t) talkTap(true); }); return; }
     t.tap = true;                                 // озвучки нет — ждём нажатия
     if (t.sp) t.sp.classList.add('talk'); else $('#btext').classList.add('tap');
+    // текст не показывается (SHOW_TEXT) — нажимать не на что: идём дальше сами, через время на фразу
+    if (!P.SHOW_TEXT) wait(Math.max(2500, sayText.length * 70)).then(() => { if (talk === t) talkTap(true); });
   });
 }
 function hideSay() { endTalk(); $('#btext').textContent = sayText = ''; $('#replay').hidden = true; }
@@ -302,7 +310,8 @@ async function partA() {
   A.knife = sprite('knife', 'front'); setB(A.knife, L.apple * 0.62);
   put(A.piece, W / 2, L.appleY); layoutA();
   setCount(0);
-  say(T.appleAsk, { next: false });               // «Где Эли?» — а ножик светится и зовёт резать
+  A.ask = document.createElement('div'); A.ask.id = 'ask'; A.ask.textContent = T.appleAsk; stage.appendChild(A.ask);
+  say(T.appleAsk, { next: false });               // «Где Эли?» — крупно посередине, а ножик светится и зовёт резать
   for (let i = 1; i <= P.MANUAL_CUTS; i++) {
     await knifeTap(0);
     await cutOnce(i);
@@ -365,7 +374,7 @@ async function fastCuts() {
   }
   hideSay();
   await flash();
-  for (const el of [A.monG, A.monO, A.piece, A.knife]) el.remove();
+  for (const el of [A.monG, A.monO, A.piece, A.knife, A.ask]) el.remove();
   $('#counter').hidden = true;
   A = {};
 }
@@ -1089,8 +1098,99 @@ async function eliStage4() {                     // Этап 4 — вниз (с�
   await downTask(3, ['cyan', 'red', 'violet'], { explain: T.s4b, dream: true });
   await downTask(4, ['red', 'cyan', 'violet'], { text: T.s4laser });
   await downTask(5, ['cyan', 'violet', 'red']);
+  await laserGame();
   await downHome(T.s4end);
   hideSay();
+}
+
+/* --- мини-игра «Лазер» (конец этапа 4) ---
+   1) пять маленьких Эли на своих ступеньках 2 и 3; ребёнок нажимает на каждого — Эли глотает красный фотон
+      и прыгает наверх (накачка); 2) все наверху — появляется красный фотон, ребёнок его запускает;
+   3) пролетая мимо Эли, фотон заставляет его спрыгнуть и выпустить повторюшку (вынужденное излучение):
+      фотонов становится 1 → 6, они летят строем и мигают в такт; 4) в конце — лазерный луч и мишень. */
+async function laserGame() {
+  phase = 'laser';                                 // перестройка экрана при повороте не трогает лесенку
+  const N = P.LASER_ATOMS, main = [...steps, eli, nucleus, auraEl, dreamEl, $('#spectrum')].filter(Boolean);
+  main.forEach(el => { el.style.visibility = 'hidden'; });
+  const m = Math.min(W / (N + 2), H * 0.11), y3 = H * 0.42, y2 = y3 + m * 1.6;   // ступеньки 3 и 2
+  const xs = [...Array(N)].map((_, i) => W * (i + 1.5) / (N + 2)), yE = y => y - 6 - m * 0.42;
+  const bars = [], kids = [];
+  for (const [y, n] of [[y3, 3], [y2, 2]]) {
+    const [ct, cf, cg] = P.STEP_COLORS[n - 1];
+    xs.forEach(x => {
+      const b = document.createElement('div'); b.className = 'step' + (n === 2 ? ' glass' : '');
+      b.style.setProperty('--c-top', ct); b.style.setProperty('--c-front', cf); b.style.setProperty('--c-glow', cg);
+      Object.assign(b.style, { left: (x - m * 0.55) + 'px', width: m * 1.1 + 'px', top: y + 'px' });
+      stage.appendChild(b); bars.push(b);
+    });
+  }
+  xs.forEach(x => { const k = sprite('eli_hello', 'front'); setB(k, m); put(k, x, yE(y2)); k._up = false; kids.push(k); });
+  [...bars, ...kids].forEach(e => e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500 * K }));
+  await wait(500);
+  // 1) накачка: нажать на каждого Эли
+  say(T.laserPump, { next: false });
+  await new Promise(done => {
+    let left = N;
+    kids.forEach(k => {
+      k.classList.add('tappable');
+      k.onclick = async () => {
+        if (k._up || k._busy) return;
+        k._busy = true; k.classList.remove('tappable'); sfx('tap');
+        const b = ball('red', k._x, H + L.ph); b.style.zIndex = 15;
+        await go(b, { y: k._y + m * 0.1, k: 0.6, ms: 550, easing: 'ease-in' }); b.remove();
+        k.src = 'img/eli_full.webp'; sfx('gulp'); sfx('rise', 120);
+        await go(k, { y: yE(y3), ms: 420, easing: 'ease-out' });
+        k.style.filter = `drop-shadow(0 0 8px ${PH.red.css}) drop-shadow(0 0 18px ${PH.red.css})`;
+        k._shake = k.animate([0, 1, 2, 3, 4].map(i => ({ transform: tf(k) + ` translate(${[0, 1.2, -1.2, 0.8, 0][i]}px,${[0, -0.8, 0.5, 0.8, 0][i]}px)` })),
+          { duration: P.TREMBLE_MS * K, iterations: Infinity });
+        k._up = true; if (--left === 0) done();
+      };
+    });
+  });
+  // 2) запуск: светящийся фотон слева
+  await wait(400);
+  say(T.laserFire, { next: false });
+  const yBeam = yE(y3);                           // строй и луч — на высоте заряженных Эли, через их место
+  const shot = ball('red', W * 0.06, yBeam); shot.classList.add('tappable');
+  await tapOn(shot);
+  shot.classList.remove('tappable'); sfx('whoosh');
+  // 3) цепочка: строй фотонов летит направо, каждый Эли добавляет повторюшку
+  const team = [shot], gap = L.ph * 0.5, stops = [trail(shot, 'red')];
+  pulse(team);
+  const yRow = i => shot._y + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * gap * 0.55;   // строй: веер вверх-вниз от оси
+  for (let i = 0; i < N; i++) {
+    const k = kids[i], x = k._x - m * 0.45;
+    await Promise.all(team.map((p, j) => go(p, { x, y: yRow(j), ms: (x - p._x) / W * P.LASER_MS, easing: 'linear' })));
+    k._shake.cancel(); k.src = 'img/eli_blow.webp'; k.style.filter = ''; sfx('pop');
+    const tw = ball('red', k._x, k._y); tw._k = 0.2; tw.style.transform = tf(tw);
+    stops.push(trail(tw, 'red'));
+    team.push(tw);
+    team.forEach(p => p.getAnimations().forEach(a => a.cancel())); pulse(team);   // все мигают в такт
+    go(k, { y: yE(y2), ms: 380, easing: 'ease-in' }).then(() => { k.src = 'img/eli_hello.webp'; });
+    sfx('fall');
+    await go(tw, { k: 1, x: x, y: yRow(team.length - 1), ms: 260, easing: 'ease-out' });
+  }
+  // 4) луч и мишень
+  const tx = W - 16 - m * 0.5, target = document.createElement('div'); target.className = 'ltarget';
+  Object.assign(target.style, { width: m + 'px', height: m + 'px', left: (tx - m / 2) + 'px', top: (yBeam - m / 2) + 'px' });
+  stage.appendChild(target);
+  await Promise.all(team.map((p, j) => go(p, { x: tx, y: yRow(j), ms: (tx - p._x) / W * P.LASER_MS * 0.6, easing: 'ease-in' })));
+  stops.forEach(s => s()); team.forEach(p => p.remove());
+  const beam = document.createElement('div'); beam.className = 'lbeam';
+  Object.assign(beam.style, { left: W * 0.06 + 'px', width: (tx - W * 0.06) + 'px', top: (yBeam - 5) + 'px' });
+  stage.appendChild(beam);
+  sfx('sparkle'); sfx('fanfare', 200);
+  beam.animate([{ transform: 'scaleX(0)', opacity: 0.4 }, { transform: 'scaleX(1)', opacity: 1 }], { duration: 350 * K, easing: 'ease-out' });
+  target.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.5)', filter: 'brightness(2)' }, { transform: 'scale(1)' }], { duration: 700 * K, iterations: 2 });
+  kids.forEach(k => bounce(k));
+  await say(T.laserWin, { next: false });
+  await wait(800);
+  // назад к лесенке Эли
+  const extra = [...bars, ...kids, beam, target];
+  await Promise.all(extra.map(e => e.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400 * K, fill: 'forwards' }).finished));
+  extra.forEach(e => e.remove());
+  main.forEach(el => { el.style.visibility = ''; });
+  phase = 'atom';
 }
 
 async function eliStage5() {                     // Этап 5 — проверка; не прошёл — тренировка с подсказками и снова проверка
@@ -1167,6 +1267,7 @@ function relayout() {
 }
 addEventListener('resize', () => { clearTimeout(relayout._t); relayout._t = setTimeout(relayout, 150); });
 
+document.body.classList.toggle('notext', !P.SHOW_TEXT);
 $('#stitle').textContent = T.title; $('#snote').textContent = T.note;
 $('#play').textContent = T.loading; $('#skip').textContent = T.skip; $('#skip2').textContent = T.skip2;
 $('#prev .nl').textContent = T.back; $('#next .nl').textContent = T.fwd;
