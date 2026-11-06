@@ -163,10 +163,11 @@ for (const lang of langs) {
   const keys = Object.keys(idx), byNum = n => { const k = keys[n - 1]; if (!k) throw new Error(`нет фразы № ${n}`); return k; };
   const tdir = path.join(ROOT, 'audio', 'takes'), tidxFile = path.join(tdir, 'index.json');
   if (TAKES) {
-    fs.rmSync(tdir, { recursive: true, force: true }); fs.mkdirSync(tdir, { recursive: true });
-    const tidx = {};
+    fs.mkdirSync(tdir, { recursive: true });         // дубли других фраз не трогаем — их ещё могут выбрать
+    const tidx = fs.existsSync(tidxFile) ? JSON.parse(fs.readFileSync(tidxFile, 'utf8')) : {};
     for (const n of TAKES.split(',').map(Number)) {
       const key = byNum(n), { voice, text, said = text } = idx[key];
+      for (const k of Object.keys(tidx)) if (k.startsWith(key + '_')) { delete tidx[k]; fs.rmSync(path.join(tdir, k + '.mp3'), { force: true }); }
       for (let j = 1; j <= COUNT; j++) {
         console.log(`дубль № ${n}.${j}: ${text.slice(0, 40)}`);
         await synth(lang, said, voice, path.join(tdir, `${key}_${j}.mp3`));
