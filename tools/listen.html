@@ -16,6 +16,8 @@
   li.playing button{background:#45e58a}
   .t{flex:1}
   .v{font-size:12px;color:#c3c8f2}
+  .s{font-size:14px;color:#ffd45a}
+  .s:empty{display:none}
   [dir=rtl] .t{font-size:18px}
 </style>
 </head>
@@ -32,10 +34,11 @@ async function show() {
   const idx = await (await fetch(`../audio/${lang}/index.json`, { cache: 'reload' })).json();
   const list = document.getElementById('list'); list.innerHTML = '';
   list.dir = lang === 'ru' ? 'ltr' : 'rtl';
-  for (const [key, { voice, text }] of Object.entries(idx)) {
+  for (const [key, { voice, text, said }] of Object.entries(idx)) {
     const li = document.createElement('li');
-    li.innerHTML = '<button type="button" aria-label="play">▶</button><div class="t"><div></div><div class="v"></div></div>';
+    li.innerHTML = '<button type="button" aria-label="play">▶</button><div class="t"><div></div><div class="s"></div><div class="v"></div></div>';
     li.querySelector('.t div').textContent = text;
+    li.querySelector('.s').textContent = said ? 'голосу: ' + said : '';   // что на самом деле уходит голосу (SAY_AS)
     li.querySelector('.v').textContent = `${voice} · ${key}.mp3`;
     li.querySelector('button').onclick = () => {
       document.querySelectorAll('li.playing').forEach(x => x.classList.remove('playing'));
