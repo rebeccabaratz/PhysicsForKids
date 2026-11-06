@@ -1063,7 +1063,7 @@ async function eliStage1() {                     // Этап 1 — смотри�
 async function eliStage2() {                     // Этап 2 — с подсказкой (обучение: силуэт на цели)
   await ensureAtom();
   setLabel(T.stage(2)); hideSay();
-  await liftToTwo(true, ['red', 'uv', 'cyan']);
+  await liftToTwo(true, ['red', 'uv', 'cyan'], T.s2intro);   // начало игры: «теперь твоя очередь — нажми на фотон»
   await upTask(3, ['cyan', 'red', 'violet'], true, true);
   await upTask(4, ['red', 'violet', 'cyan'], true, true);
   await upTask(5, ['violet', 'cyan', 'red'], true, true, T.s2end);
@@ -1201,12 +1201,22 @@ document.querySelectorAll('.lang').forEach(b => {
 updNav();
 const startHash = HASH_SCENE;
 try { $('#sbadge').hidden = localStorage.getItem('eliBadge') !== '1'; } catch (e) {}
-// открыли сцену по адресу (после ◀ ▶) — только кнопка «Играть»: касание нужно, чтобы браузер включил звук
-if (SCENES.includes(startHash)) ['#snote', '#skip', '#skip2', '#langs', '#sbadge'].forEach(q => { $(q).hidden = true; });
+// открыли сцену по адресу (после ◀ ▶ страница перезагружается): если браузер уже разрешает звук — сразу в сцену;
+// иначе — экран только с кнопкой «Играть»: касание нужно, чтобы браузер включил звук
+if (SCENES.includes(startHash)) {
+  $('#start').hidden = true;
+  ['#snote', '#skip', '#skip2', '#langs', '#sbadge'].forEach(q => { $(q).hidden = true; });
+}
 preloadVoices(LANG);
-preload().then(() => {
-  const play = $('#play'); play.disabled = false; play.textContent = T.play; play.focus({ preventScroll: true });
-  if (SCENES.includes(startHash)) { play.onclick = () => runFrom(startHash); return; }
+preload().then(async () => {
+  const play = $('#play'); play.disabled = false; play.textContent = T.play;
+  if (SCENES.includes(startHash)) {
+    unlockAudio(); await new Promise(r => setTimeout(r, 300));
+    if (soundOn()) { runFrom(startHash); return; }
+    $('#start').hidden = false; play.focus({ preventScroll: true });
+    play.onclick = () => runFrom(startHash); return;
+  }
+  play.focus({ preventScroll: true });
   let next = ''; try { next = localStorage.getItem('eliNext') || ''; } catch (e) {}
   play.onclick = () => runFrom(SCENES.includes(next) ? next : (P.START === 'atom' ? 'eli1' : 'apple'));
   $('#skip').onclick = () => runFrom('build');
