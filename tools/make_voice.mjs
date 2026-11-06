@@ -13,7 +13,8 @@
    Ключ файла считает voiceKey() из js/sound.js — тот же, что и игра.
 
    Google иногда «глотает» конец фразы. Поэтому каждый файл проверяется через ffmpeg: если последние
-   TAIL_S секунды громче TAIL_DB — фраза оборвана, и она озвучивается заново (до TRIES попыток).
+   TAIL_S секунды громче TAIL_DB — фраза оборвана; если звук на символ текста длиннее MAX_MS_PER_CHAR
+   или сплошь громче MAX_MEAN_DB — это брак (бывает: 26 с шума вместо фразы). Такие озвучиваются заново (до TRIES раз).
    Паузы в иврите — только знаками препинания: теги [pause] для he-IL Google не поддерживает. */
 
 import fs from 'node:fs';
@@ -26,6 +27,7 @@ const PROJECT = 'becky-498719';
 const SILERO = 'http://127.0.0.1:8081/synthesize';
 const SPEAKING_RATE = 0.95;                         // чуть медленнее обычного — для детей 7–8 лет
 const TAIL_S = 0.15, TAIL_DB = -35, TRIES = 4;      // проверка, не оборвана ли фраза
+const MAX_MS_PER_CHAR = 250, MAX_MEAN_DB = -14;     // брак: слишком длинно для текста или сплошной шум (норма ~70–160 мс, ~−20 дБ)
 
 // кто какую фразу говорит → голос. Ребекка выбрала один мужской голос — голос Эли — для всех
 // (женский рассказчик he-IL-Chirp3-HD-Sulafat звучал с сильным акцентом)
@@ -96,13 +98,21 @@ async function sileroTts(text, speaker) {
   return Buffer.from(await r.arrayBuffer());
 }
 
-function tailDb(file) {                             // самый громкий звук в последние TAIL_S секунды, дБ
-  try {
-    const out = execSync(`ffmpeg -hide_banner -sseof -${TAIL_S} -i "${file}" -af volumedetect -f null - 2>&1`, { encoding: 'utf8' });
-    return Number((out.match(/max_volume: ([-\d.]+)/) || [])[1] ?? -99);
-  } catch (e) { return -99; }                       // ffmpeg нет — проверку пропускаем
+function ff(args) {                                 // вывод ffmpeg; ffmpeg нет — пустая строка, проверки пропускаются
+  try { return execSync(`ffmpeg -hide_banner ${args} -af volumedetect -f null - 2>&1`, { encoding: 'utf8' }); } catch (e) { return ''; }
 }
-const cutOff = file => tailDb(file) > TAIL_DB;
+const num = (out, re) => Number((out.match(re) || [])[1] ?? NaN);
+/* что не так с файлом: '' — всё в порядке */
+function problem(file, text) {
+  const tail = num(ff(`-sseof -${TAIL_S} -i "${file}"`), /max_volume: ([-\d.]+)/);
+  if (tail > TAIL_DB) return 'оборвана в конце';
+  const all = ff(`-i "${file}"`), mean = num(all, /mean_volume: ([-\d.]+)/);
+  const [, h, m, sec] = all.match(/time=(\d+):(\d+):([\d.]+)/g)?.pop().match(/time=(\d+):(\d+):([\d.]+)/) || [];
+  const ms = ((+h || 0) * 3600 + (+m || 0) * 60 + (+sec || 0)) * 1000;
+  if (text.length >= 15 && ms / text.length > MAX_MS_PER_CHAR) return `слишком длинная (${(ms / 1000).toFixed(1)} с)`;
+  if (mean > MAX_MEAN_DB) return `шум вместо речи (${mean} дБ)`;
+  return '';
+}
 
 /* ---------- основной проход ---------- */
 const langs = process.argv.slice(2).length ? process.argv.slice(2) : ['he', 'ru'];
@@ -119,12 +129,13 @@ for (const lang of langs) {
     const said = spoken(lang, text);                // что уходит голосу (с правками произношения)
     idx[key] = said === text ? { voice, text } : { voice, text, said };
     const same = old[key] && old[key].voice === voice && (old[key].said ?? old[key].text) === said;
-    if (fs.existsSync(file) && same && !cutOff(file)) continue;
+    if (fs.existsSync(file) && same && !problem(file, said)) continue;
     process.stdout.write(`${lang} ${key} ${who}: ${text.slice(0, 50)}…\n`);
     for (let i = 1; i <= TRIES; i++) {
       fs.writeFileSync(file, lang === 'he' ? await googleTts(said, voice) : await sileroTts(said, voice));
-      if (!cutOff(file)) break;
-      console.log(i < TRIES ? `   оборвана в конце, ещё раз (${i + 1})` : `   !!! всё ещё оборвана после ${TRIES} попыток — послушать`);
+      const bad = problem(file, said);
+      if (!bad) break;
+      console.log(i < TRIES ? `   ${bad}, ещё раз (${i + 1})` : `   !!! ${bad} после ${TRIES} попыток — послушать`);
     }
     made++;
   }
