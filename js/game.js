@@ -1082,8 +1082,9 @@ async function eliStage2() {                     // Этап 2 — с подск
 async function stage3(hints) {                   // Этап 3 — сам (при повторной тренировке — с подсказками и силуэтом)
   setLabel(T.stage(3));
   const fast = i => { riverK = hints ? 1 : P.RIVER_FAST[i]; };   // без подсказок река с каждым заданием быстрее
-  fast(0); await liftToTwo(hints, ['violet', 'red', 'uv'], hints ? T.almost : T.s2rainbow);
-  fast(1); await upTask(4, ['red', 'cyan', 'yellow'], hints, hints, hints ? T.s3hint : T.s3intro);
+  if (!hints) await say(T.s2rainbow);              // про радугу и штрихкод — до заданий; дозвучала — дальше сама
+  fast(0); await liftToTwo(hints, ['violet', 'red', 'uv'], hints ? T.almost : T.s3intro);   // «а теперь без подсказок» — с первым же заданием
+  fast(1); await upTask(4, ['red', 'cyan', 'yellow'], hints, hints, hints ? T.s3hint : '');
   fast(2); await upTask(3, ['green', 'red', 'violet'], hints, hints);
   fast(3); await upTask(5, ['cyan', 'violet', 'yellow'], hints, hints);
   riverK = 1;
