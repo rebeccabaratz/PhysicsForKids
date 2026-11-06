@@ -625,6 +625,7 @@ function showCard(z) {
     ov.innerHTML = `<img src="img/card_${z}.webp" alt=""><h2></h2>`;   // карточка закрывается нажатием на неё
     ov.querySelector('h2').textContent = T.elements[z - 1];
     stage.appendChild(ov); sfx('fanfare');
+    wait(500).then(() => playVoice(T.elements[z - 1] + '.'));   // Эли называет элемент: «Гелий.»
     ov.animate([{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'scale(1)' }], { duration: 450 * K, easing: 'ease-out' });
     let closing = false; const t0 = performance.now();
     ov.onclick = async () => {

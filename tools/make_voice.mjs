@@ -49,6 +49,8 @@ const SAY_AS = {
   he: [
     [/לחצו על פוטון/g, 'לחצו על фото́н'],   // «לחצו על פוטון…» (№ 15, лазер): ивритом всегда «фОтон» — кириллица с ударением
     [/פוטו/g, 'פוטוֹ'],                            // «фотун» → «фотон»: холам на последнем слоге (вариант foton3)
+    [/^מימן\.$/, 'מֵימָן.'], [/^בור\.$/, 'בּוֹר.'], [/^פחמן\.$/, 'פַּחְמָן.'],   // названия элементов на карточках:
+    [/^חנקן\.$/, 'חַנְקָן.'], [/^חמצן\.$/, 'חַמְצָן.'],                       // огласовки, чтобы не прочитать иначе
     [/אטו(?=[םמ])/g, 'אטוֹ'],                       // «атум» → «атом»: אטום, האטומים, באטום
     [/הכול/g, 'הכוֹל'],
     [/־חקיין/g, ' חקיין'],                         // «פוטון־חקיין» — голос сливал в одно слово
@@ -74,7 +76,8 @@ const PASS_SCORE = Number(gameJs.match(/PASS_SCORE:\s*(\d+)/)[1]);
 function phrases(T) {                               // все фразы, которые игра произносит через say()
   const out = [], add = (who, ...texts) => texts.forEach(text => out.push({ who, text }));
   add('narrator', T.cell, T.molecule);
-  add('eli', T.appleAsk);                           // «Где Эли?» — мужским голосом (женский рассказчик звучал с акцентом)
+  add('eli', T.appleAsk);
+  add('eli', ...T.elements.map(n => n + '.'));       // название элемента на карточке атома                           // «Где Эли?» — мужским голосом (женский рассказчик звучал с акцентом)
   add('atom', T.atomHello, T.buildHelp, T.neutrons, T.allFound);
   add('eli', ...T.s1, T.s1uv, T.s1yellow, T.s1drop, T.s1uvout, T.s2intro, T.s2end, T.s2rainbow, T.s3intro, T.s3hint, T.pass,
     T.s4b, T.s4laser, T.laserPump, T.laserFire, T.laserWin, T.s4wrong, T.s4end, T.s5intro(PASS_SCORE), T.win, T.almost, T.teaser);
