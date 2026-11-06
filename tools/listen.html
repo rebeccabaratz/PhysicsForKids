@@ -34,12 +34,14 @@ async function show() {
   const idx = await (await fetch(`../audio/${lang}/index.json`, { cache: 'reload' })).json();
   const list = document.getElementById('list'); list.innerHTML = '';
   list.dir = lang === 'ru' ? 'ltr' : 'rtl';
+  let n = 0;
   for (const [key, { voice, text, said }] of Object.entries(idx)) {
+    n++;
     const li = document.createElement('li');
     li.innerHTML = '<button type="button" aria-label="play">▶</button><div class="t"><div></div><div class="s"></div><div class="v"></div></div>';
     li.querySelector('.t div').textContent = text;
     li.querySelector('.s').textContent = said ? 'голосу: ' + said : '';   // что на самом деле уходит голосу (SAY_AS)
-    li.querySelector('.v').textContent = `${voice} · ${key}.mp3`;
+    li.querySelector('.v').textContent = `№ ${n} · ${voice} · ${key}.mp3`;
     li.querySelector('button').onclick = () => {
       document.querySelectorAll('li.playing').forEach(x => x.classList.remove('playing'));
       player.src = `../audio/${lang}/${key}.mp3?${Date.now()}`; player.play(); li.classList.add('playing');
