@@ -1229,7 +1229,7 @@ async function eliStage5() {                     // Этап 5 — провер�
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
-   «Играть» продолжает со сцены, следующей за последней законченной; после финала — снова с начала. */
+   «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
 const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5'];
 const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5 };
 let cur = -1;
@@ -1269,7 +1269,7 @@ addEventListener('resize', () => { clearTimeout(relayout._t); relayout._t = setT
 
 document.body.classList.toggle('notext', !P.SHOW_TEXT);
 $('#stitle').textContent = T.title; $('#snote').textContent = T.note;
-$('#play').textContent = T.loading; $('#skip').textContent = T.skip; $('#skip2').textContent = T.skip2;
+$('#play').textContent = T.loading; $('#cont').textContent = T.cont; $('#skip').textContent = T.skip; $('#skip2').textContent = T.skip2;
 $('#prev .nl').textContent = T.back; $('#next .nl').textContent = T.fwd;
 $('#prev').setAttribute('aria-label', T.prevScene); $('#next').setAttribute('aria-label', T.nextScene);
 $('#prev').onclick = () => goScene(cur - 1);     // из первой сцены — на стартовый экран
@@ -1306,7 +1306,7 @@ try { $('#sbadge').hidden = localStorage.getItem('eliBadge') !== '1'; } catch (e
 // иначе — экран только с кнопкой «Играть»: касание нужно, чтобы браузер включил звук
 if (SCENES.includes(startHash)) {
   $('#start').hidden = true;
-  ['#snote', '#skip', '#skip2', '#langs', '#sbadge'].forEach(q => { $(q).hidden = true; });
+  ['#snote', '#skip', '#skip2', '#langs', '#sbadge', '#cont'].forEach(q => { $(q).hidden = true; });
 }
 preloadVoices(LANG);
 preload().then(async () => {
@@ -1318,8 +1318,11 @@ preload().then(async () => {
     play.onclick = () => runFrom(startHash); return;
   }
   play.focus({ preventScroll: true });
+  play.onclick = () => runFrom(P.START === 'atom' ? 'eli1' : 'apple');   // «Играть» — всегда с начала
   let next = ''; try { next = localStorage.getItem('eliNext') || ''; } catch (e) {}
-  play.onclick = () => runFrom(SCENES.includes(next) ? next : (P.START === 'atom' ? 'eli1' : 'apple'));
+  if (SCENES.includes(next)) {                     // игра уже начата — «Продолжить» с того места, где остановились
+    const cont = $('#cont'); cont.hidden = false; cont.onclick = () => runFrom(next);
+  }
   $('#skip').onclick = () => runFrom('build');
   $('#skip2').onclick = () => runFrom('eli1');
 });
