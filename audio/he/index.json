@@ -19,7 +19,8 @@
  "b6a7c50b": {
   "voice": "he-IL-Chirp3-HD-Puck",
   "text": "מימן.",
-  "said": "мейма́н."
+  "said": "мейма́н.",
+  "pinned": true
  },
  "409d4624": {
   "voice": "he-IL-Chirp3-HD-Puck",
@@ -30,7 +31,8 @@
  "05a73e6d": {
   "voice": "he-IL-Chirp3-HD-Puck",
   "text": "ליתיום.",
-  "said": "ли́тиум."
+  "said": "ли́тиум.",
+  "pinned": true
  },
  "0da5aee8": {
   "voice": "he-IL-Chirp3-HD-Puck",
