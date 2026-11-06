@@ -9,7 +9,9 @@
      node tools/make_voice.mjs he --takes 11,13 [--count 3]   → по 3 дубля фраз № 11 и № 13 в audio/takes
                                                                 (номера — как на странице tools/listen.html;
                                                                 послушать — вкладка «Дубли»)
-     node tools/make_voice.mjs he --pick 11=2,13=1             → поставить в игру выбранные дубли
+     node tools/make_voice.mjs he --pick 11=2,13=1             → поставить в игру выбранные дубли (и закрепить)
+     node tools/make_voice.mjs he --pin 7                      → закрепить запись № 7 как есть: проверка на брак
+                                                                её больше не переозвучит (пока не изменится текст)
 
    Иврит — Google Cloud Text-to-Speech, голоса Chirp 3 HD (нужен gcloud: `gcloud auth login`,
           проект с включённым texttospeech.googleapis.com — PROJECT ниже).
@@ -50,7 +52,7 @@ const SAY_AS = {
     [/לחצו על פוטון/g, 'לחצו על фото́н'],   // «לחצו על פוטון…» (№ 15, лазер): ивритом всегда «фОтон» — кириллица с ударением
     [/פוטו/g, 'פוטוֹ'],                            // «фотун» → «фотон»: холам на последнем слоге (вариант foton3)
     [/^מימן\.$/, 'מֵימָן.'], [/^בור\.$/, 'בּוֹר.'], [/^פחמן\.$/, 'פַּחְמָן.'],   // названия элементов на карточках:
-    [/^חנקן\.$/, 'חַנְקָן.'], [/^חמצן\.$/, 'חַמְצָן.'],                       // огласовки, чтобы не прочитать иначе
+    [/^חנקן\.$/, 'ханка́н.'], [/^חמצן\.$/, 'хамца́н.'], [/^הליום\.$/, 'хе́лиум.'],   // кириллица — выбрано на слух
     [/אטו(?=[םמ])/g, 'אטוֹ'],                       // «атум» → «атом»: אטום, האטומים, באטום
     [/הכול/g, 'הכוֹל'],
     [/־חקיין/g, ' חקיין'],                         // «פוטון־חקיין» — голос сливал в одно слово
@@ -131,7 +133,7 @@ function problem(file, text) {
 
 /* ---------- основной проход ---------- */
 const argv = process.argv.slice(2), opt = name => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : null; };
-const TAKES = opt('--takes'), PICK = opt('--pick'), COUNT = Number(opt('--count') || 3);
+const TAKES = opt('--takes'), PICK = opt('--pick'), PIN = opt('--pin'), COUNT = Number(opt('--count') || 3);
 const langs = argv.filter(a => /^(he|ru)$/.test(a)).length ? argv.filter(a => /^(he|ru)$/.test(a)) : ['he', 'ru'];
 async function synth(lang, said, voice, file) {     // озвучить с проверкой на брак (до TRIES попыток)
   for (let i = 1; i <= TRIES; i++) {
@@ -154,6 +156,8 @@ for (const lang of langs) {
     const said = spoken(lang, text);                // что уходит голосу (с правками произношения)
     idx[key] = said === text ? { voice, text } : { voice, text, said };
     const same = old[key] && old[key].voice === voice && (old[key].said ?? old[key].text) === said;
+    // закреплено (выбрано на слух) — не трогаем, даже если проверка считает брак; меняется текст — закрепление снимается
+    if (same && old[key].pinned && fs.existsSync(file)) { idx[key].pinned = true; continue; }
     if (fs.existsSync(file) && same && !problem(file, said)) continue;
     process.stdout.write(`${lang} ${key} ${who}: ${text.slice(0, 50)}…\n`);
     await synth(lang, said, voice, file);
@@ -181,10 +185,13 @@ for (const lang of langs) {
     }
     fs.writeFileSync(tidxFile, JSON.stringify(tidx, null, 1) + '\n');
   }
-  if (PICK) for (const pair of PICK.split(',')) {   // выбранный дубль → в игру
+  if (PICK) for (const pair of PICK.split(',')) {   // выбранный дубль → в игру (и закрепить)
     const [n, j] = pair.split('=').map(Number), key = byNum(n), src = path.join(tdir, `${key}_${j}.mp3`);
     if (!fs.existsSync(src)) throw new Error(`нет дубля № ${n}.${j}`);
     fs.copyFileSync(src, path.join(dir, key + '.mp3'));
+    idx[key].pinned = true;
     console.log(`№ ${n}: в игре дубль ${j}`);
   }
+  if (PIN) for (const n of PIN.split(',').map(Number)) { idx[byNum(n)].pinned = true; console.log(`№ ${n}: закреплено`); }
+  if (PICK || PIN) fs.writeFileSync(idxFile, JSON.stringify(idx, null, 1) + '\n');
 }
