@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Эли и фотон</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="stage">
+  <div id="top">
+    <button id="prev" class="nav lbl" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M13 3 L6 10 L13 17" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="nl"></span></button>
+    <div id="tmid"><p id="btext"></p><div id="sub"><span id="label"></span><span id="score"></span></div></div>
+    <button id="next" class="nav lbl" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 3 L14 10 L7 17" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="nl"></span></button>
+    <button id="home" class="nav" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 9.5 L10 3.5 L17 9.5 M5 8 V16.5 H8.5 V12 H11.5 V16.5 H15 V8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+  <div id="counter" hidden><b id="cnum">0</b><span id="ccap"></span></div>
+  <div id="flash"></div>
+  <div id="start">
+    <img src="img/eli_hello.webp" alt="">
+    <h1 id="stitle"></h1>
+    <p id="snote"></p>
+    <button id="play" class="btn" type="button" disabled></button>
+    <button id="skip" type="button"></button>
+    <button id="skip2" type="button"></button>
+    <div id="langs"><button class="lang" type="button" data-l="he" lang="he">עברית</button><button class="lang" type="button" data-l="ru" lang="ru">Русский</button></div>
+  </div>
+</div>
+
+<script src="js/game.js"></script>
+</body>
+</html>
