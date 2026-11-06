@@ -698,7 +698,7 @@ function dream(n) {
   dreamEl = sprite('eli_hello', 'dream'); dreamEl._lvl = n; setB(dreamEl, L.eli); put(dreamEl, L.cx, eliY(n));
 }
 function undream() { if (dreamEl) { dreamEl.remove(); dreamEl = null; } }
-function ask(target, withDream) { setTarget(target); hop(true); if (withDream) dream(target); }
+function ask(target, withDream, glow = true) { setTarget(glow ? target : null); hop(true); if (withDream) dream(target); }   // glow=false — ступенька не мигает
 function unask() { setTarget(null); hop(false); undream(); }
 
 /* --- штрихкод Эли: полоска-спектр, в которой загораются цвета, пойманные ребёнком (линии водорода) ---
@@ -888,7 +888,7 @@ async function downHome(text = '') {              // задание этапа �
   if (text) await say(text, { next: false });     // пока Эли объясняет, всё стоит: фотоны — после фразы
   hideSay();
   for (;;) {
-    ask(1, false);
+    ask(1, false, false);                         // спуск: два фотона-повторюшки — ступенька не мигает, это путает
     const { c, x, y } = await river(['red', 'uv', 'cyan']);
     const r = await hit(c, x, y);
     if (r.type === 'down' && r.to === 1) { unask(); hideSay(); sfx('ding'); await wait(900); return; }   // два мерцающих фотона видны и без слов
@@ -954,7 +954,7 @@ async function downTask(from, colors, o = {}) {
   if (tx) await say(tx, { next: false });         // пока Эли объясняет, всё стоит: фотоны — после фразы
   hideSay();
   for (;;) {
-    ask(2, o.dream);
+    ask(2, o.dream, false);                       // спуск: два фотона-повторюшки — ступенька не мигает, это путает
     const { c, x, y } = await river(colors);
     const r = await hit(c, x, y);
     if (r.type === 'down' && r.to === 2) { unask(); sfx('ding'); await say(T.s4ok(PH[lc].gen), { next: false }); await wait(900); hideSay(); return; }
