@@ -851,7 +851,7 @@ async function hit(c, fx, fy, ms = P.FLY_MS, demo = false) {   // мячик c �
     hop(false); pose('open');
     await go(b, { x: tx, y: ty, k: 0.2, ms: P.SWALLOW_MS, easing: 'ease-in' }); stop(); b.remove();
     sfx('gulp'); pose('full'); holdGlow(c); await wait(450);
-    pose('jump'); sfx('rise'); await eliTo(r.to, 650); await wait(250); restPose(r.to);
+    sfx('rise'); await eliTo(r.to, 650);          // прыгает вверх с надутыми щеками (фотон внутри) await wait(250); restPose(r.to);
     if (!demo) await catchLine(c);
   } else if (r.type === 'down') {
     // вынужденный: мячик задевает Эли, повторюшка медленно вырастает изо рта, оба летят рядом и в ногу
