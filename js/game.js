@@ -311,7 +311,7 @@ async function partA() {
   put(A.piece, W / 2, L.appleY); layoutA();
   setCount(0);
   A.ask = document.createElement('div'); A.ask.id = 'ask'; A.ask.textContent = T.appleAsk; stage.appendChild(A.ask);
-  say(T.appleAsk, { next: false });               // «Где Эли?» — крупно посередине, а ножик светится и зовёт резать
+  await say(T.appleAsk, { next: false });         // «Где Эли?» — крупно посередине; ножик зовёт резать, когда вопрос дозвучит
   for (let i = 1; i <= P.MANUAL_CUTS; i++) {
     await knifeTap(0);
     await cutOnce(i);
@@ -882,7 +882,8 @@ async function liftToTwo(hint = false, colors = ['red', 'uv', 'cyan'], text = ''
   await upTask(2, colors, hint, hint, text);
 }
 async function downHome(text = '') {              // задание этапа «Вниз»: со 2-й домой — тем же невидимым фотоном
-  if (text) say(text, { next: false }); else hideSay();
+  if (text) await say(text, { next: false });     // пока Эли объясняет, всё стоит: фотоны — после фразы
+  hideSay();
   for (;;) {
     ask(1, false);
     const { c, x, y } = await river(['red', 'uv', 'cyan']);
@@ -926,7 +927,8 @@ function river(colors, hint) {
 /* --- задания (без текста: цель показывается мерцанием) --- */
 async function upTask(target, colors, hint, withDream, text = '') {
   const right = colorFor(EN(target) - EN(lvl));
-  if (text) say(text, { next: false }); else hideSay();   // текст можно читать, а можно сразу выбирать фотон
+  if (text) await say(text, { next: false });     // пока Эли объясняет, всё стоит: фотоны — после фразы
+  hideSay();
   for (;;) {
     ask(target, withDream);
     const { c, x, y } = await river(colors, hint ? right : null);
@@ -946,7 +948,8 @@ async function downTask(from, colors, o = {}) {
   hideSay(); await wait(600);                     // без «Сейчас меня поднимет…»: ребёнок это видит
   await fromLeft(lc);
   const tx = o.explain || o.text;
-  if (tx) say(tx, { next: false }); else hideSay();
+  if (tx) await say(tx, { next: false });         // пока Эли объясняет, всё стоит: фотоны — после фразы
+  hideSay();
   for (;;) {
     ask(2, o.dream);
     const { c, x, y } = await river(colors);
@@ -1136,7 +1139,7 @@ async function laserGame() {
   [...bars, ...kids].forEach(e => e.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 500 * K }));
   await wait(500);
   // 1) накачка: нажать на каждого Эли
-  say(T.laserPump, { next: false });
+  await say(T.laserPump, { next: false });        // пока Эли объясняет, нажимать нельзя
   await new Promise(done => {
     let left = N;
     kids.forEach(k => {
@@ -1157,9 +1160,10 @@ async function laserGame() {
   });
   // 2) запуск: светящийся фотон слева
   await wait(400);
-  say(T.laserFire, { next: false });
   const yBeam = yE(y3);                           // строй и луч — на высоте заряженных Эли, через их место
-  const shot = ball('red', W * 0.06, yBeam); shot.classList.add('tappable');
+  const shot = ball('red', W * 0.06, yBeam);
+  await say(T.laserFire, { next: false });        // фотон ждёт нажатия — после фразы
+  shot.classList.add('tappable');
   await tapOn(shot);
   shot.classList.remove('tappable'); sfx('whoosh');
   // 3) цепочка: строй фотонов летит направо, каждый Эли добавляет повторюшку
