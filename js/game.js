@@ -702,11 +702,13 @@ function ask(target, withDream) { setTarget(target); hop(true); if (withDream) d
 function unask() { setTarget(null); hop(false); undream(); }
 
 /* --- штрихкод Эли: полоска-спектр, в которой загораются цвета, пойманные ребёнком (линии водорода) ---
-   Слева фиолетовый край спектра (400 нм), справа красный (700 нм). Пойманные цвета помнятся в этом браузере. */
+   Слева фиолетовый край спектра (400 нм), справа красный (700 нм). Пойманные цвета помнятся в этом браузере
+   для «Продолжить» и ◀ ▶; новая игра («Играть», ссылки для взрослых) начинает штрихкод заново. */
 const LINE_NM = { violet: 434, cyan: 486, red: 656 };
 const BAR = new Set();
 try { JSON.parse(localStorage.getItem('eliBarcode') || '[]').forEach(c => BAR.add(c)); } catch (e) {}
 let spectrumOn = false;
+function resetBarcode() { BAR.clear(); try { localStorage.removeItem('eliBarcode'); } catch (e) {} }
 function buildSpectrum() {
   let sp = $('#spectrum');
   if (!sp) {
@@ -1331,11 +1333,12 @@ preload().then(async () => {
     play.onclick = () => runFrom(startHash); return;
   }
   play.focus({ preventScroll: true });
-  play.onclick = () => runFrom(P.START === 'atom' ? 'eli1' : 'apple');   // «Играть» — всегда с начала
+  const fresh = scene => () => { resetBarcode(); runFrom(scene); };   // новая игра: штрихкод заполняется заново
+  play.onclick = fresh(P.START === 'atom' ? 'eli1' : 'apple');   // «Играть» — всегда с начала
   let next = ''; try { next = localStorage.getItem('eliNext') || ''; } catch (e) {}
   if (SCENES.includes(next)) {                     // игра уже начата — «Продолжить» с того места, где остановились
     const cont = $('#cont'); cont.hidden = false; cont.onclick = () => runFrom(next);
   }
-  $('#skip').onclick = () => runFrom('build');
-  $('#skip2').onclick = () => runFrom('eli1');
+  $('#skip').onclick = fresh('build');
+  $('#skip2').onclick = fresh('eli1');
 });
