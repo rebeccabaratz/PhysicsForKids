@@ -27,10 +27,11 @@ const SILERO = 'http://127.0.0.1:8081/synthesize';
 const SPEAKING_RATE = 0.95;                         // чуть медленнее обычного — для детей 7–8 лет
 const TAIL_S = 0.15, TAIL_DB = -35, TRIES = 4;      // проверка, не оборвана ли фраза
 
-// кто какую фразу говорит → голос
+// кто какую фразу говорит → голос. Ребекка выбрала один мужской голос — голос Эли — для всех
+// (женский рассказчик he-IL-Chirp3-HD-Sulafat звучал с сильным акцентом)
 const VOICES = {
-  he: { eli: 'he-IL-Chirp3-HD-Puck', atom: 'he-IL-Chirp3-HD-Charon', narrator: 'he-IL-Chirp3-HD-Sulafat' },
-  ru: { eli: 'eugene', atom: 'aidar', narrator: 'xenia' },
+  he: { eli: 'he-IL-Chirp3-HD-Puck', atom: 'he-IL-Chirp3-HD-Puck', narrator: 'he-IL-Chirp3-HD-Puck' },
+  ru: { eli: 'eugene', atom: 'eugene', narrator: 'eugene' },
 };
 
 /* как произносить: правки текста только для голоса (на экране текст не меняется).
