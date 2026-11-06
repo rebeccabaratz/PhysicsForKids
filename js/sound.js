@@ -49,30 +49,35 @@ function preloadVoices(lang) {                     // заранее скача�
     .then(idx => { const keys = Object.keys(idx); keys.forEach(loadVoice); return keys.length; })
     .catch(() => 0);
 }
-function stopVoice() {
-  const t = SND.cur; SND.cur = null;
-  if (!t) return;
-  if (t.src) { t.src.onended = null; try { t.src.stop(); } catch (e) {} }
-  if (t.done) t.done(false);
+function stopVoice() {                             // оборвать звучащую фразу (только для «послушать ещё раз»)
+  const c = SND.cur; SND.cur = null;
+  if (!c) return;
+  c.src.onended = null; try { c.src.stop(); } catch (e) {}
+  c.done(null);
 }
-/* true — фраза дозвучала до конца; false — озвучки нет, звук ещё не разрешён или фразу перебили */
-async function playVoice(text) {
-  stopVoice();
+/* Фраза не обрывает ту, что звучит: ждёт, пока та договорит. Если за это время пришла фраза новее,
+   ждавшая пропускается. interrupt=true — оборвать звучащую и говорить сразу.
+   Результат: true — дозвучала до конца; false — озвучки нет (нет файла или звук не разрешён);
+   null — фразу оборвали или пропустили ради более новой. */
+async function playVoice(text, interrupt = false) {
+  if (interrupt) stopVoice();
+  const t = {}; SND.next = t;
   if (!text) return false;
-  const t = {}; SND.cur = t;
   const buf = await loadVoice(voiceKey(text));
-  if (SND.cur !== t) return false;
+  while (SND.cur) await SND.cur.ended;
+  if (SND.next !== t) return null;
   // касание только что было — браузер включает звук не мгновенно: ждём до 0,5 с
   if (buf && SND.ac.state !== 'running') await Promise.race([SND.ac.resume().catch(() => {}), new Promise(r => setTimeout(r, 500))]);
-  if (SND.cur !== t) return false;
-  if (!buf || !soundOn()) { SND.cur = null; return false; }
+  if (SND.next !== t) return null;
+  if (SND.cur) return playVoice(text);             // пока ждали звук, заговорила другая фраза
+  SND.next = null;
+  if (!buf || !soundOn()) return false;
   const src = SND.ac.createBufferSource(); src.buffer = buf; src.connect(SND.voice);
-  t.src = src;
-  return new Promise(r => {
-    t.done = r;
-    src.onended = () => { if (SND.cur === t) SND.cur = null; r(true); };
-    src.start();
-  });
+  const c = SND.cur = { src };
+  c.ended = new Promise(r => { c.done = r; });
+  src.onended = () => { if (SND.cur === c) SND.cur = null; c.done(true); };
+  src.start();
+  return c.ended;
 }
 
 /* ---------- эффекты ---------- */

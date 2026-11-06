@@ -10,7 +10,11 @@
    Русский — локальный сервер Silero из проекта BaratzNew (C:\BaratzNew\web: npm run tts:server),
           http://127.0.0.1:8081 — Google Chirp для русского путал ударения.
 
-   Ключ файла считает voiceKey() из js/sound.js — тот же, что и игра. */
+   Ключ файла считает voiceKey() из js/sound.js — тот же, что и игра.
+
+   Google иногда «глотает» конец фразы. Поэтому каждый файл проверяется через ffmpeg: если последние
+   TAIL_S секунды громче TAIL_DB — фраза оборвана, и она озвучивается заново (до TRIES попыток).
+   Паузы в иврите — только знаками препинания: теги [pause] для he-IL Google не поддерживает. */
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,6 +25,7 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace
 const PROJECT = 'becky-498719';
 const SILERO = 'http://127.0.0.1:8081/synthesize';
 const SPEAKING_RATE = 0.95;                         // чуть медленнее обычного — для детей 7–8 лет
+const TAIL_S = 0.15, TAIL_DB = -35, TRIES = 4;      // проверка, не оборвана ли фраза
 
 // кто какую фразу говорит → голос
 const VOICES = {
@@ -74,6 +79,14 @@ async function sileroTts(text, speaker) {
   return Buffer.from(await r.arrayBuffer());
 }
 
+function tailDb(file) {                             // самый громкий звук в последние TAIL_S секунды, дБ
+  try {
+    const out = execSync(`ffmpeg -hide_banner -sseof -${TAIL_S} -i "${file}" -af volumedetect -f null - 2>&1`, { encoding: 'utf8' });
+    return Number((out.match(/max_volume: ([-\d.]+)/) || [])[1] ?? -99);
+  } catch (e) { return -99; }                       // ffmpeg нет — проверку пропускаем
+}
+const cutOff = file => tailDb(file) > TAIL_DB;
+
 /* ---------- основной проход ---------- */
 const langs = process.argv.slice(2).length ? process.argv.slice(2) : ['he', 'ru'];
 for (const lang of langs) {
@@ -87,9 +100,13 @@ for (const lang of langs) {
     const key = voiceKey(text), voice = VOICES[lang][who], file = path.join(dir, key + '.mp3');
     if (idx[key]) continue;                         // одинаковая фраза встречается дважды
     idx[key] = { voice, text };
-    if (fs.existsSync(file) && old[key]?.voice === voice) continue;
+    if (fs.existsSync(file) && old[key]?.voice === voice && !cutOff(file)) continue;
     process.stdout.write(`${lang} ${key} ${who}: ${text.slice(0, 50)}…\n`);
-    fs.writeFileSync(file, lang === 'he' ? await googleTts(text, voice) : await sileroTts(text, voice));
+    for (let i = 1; i <= TRIES; i++) {
+      fs.writeFileSync(file, lang === 'he' ? await googleTts(text, voice) : await sileroTts(text, voice));
+      if (!cutOff(file)) break;
+      console.log(i < TRIES ? `   оборвана в конце, ещё раз (${i + 1})` : `   !!! всё ещё оборвана после ${TRIES} попыток — послушать`);
+    }
     made++;
   }
   let removed = 0;

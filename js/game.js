@@ -224,8 +224,9 @@ function tag(text, x, y) {
 function setLabel(t) { $('#label').textContent = t; }
 
 /* речь в верхней панели, с озвучкой. next=true — фраза дозвучала, и через AFTER_VOICE_MS игра идёт дальше сама
-   (ребёнок играет один и не читает); нажатие на того, кто говорит (Атом или Эли), — сразу дальше.
-   Если озвучки нет (файла нет или звук ещё не разрешён) — ждём нажатия; говорящего на экране нет — нажатия на текст.
+   (ребёнок играет один и не читает). Пока голос звучит, нажатие на говорящего ничего не обрывает.
+   Только если озвучки нет (файла нет или звук не разрешён) — говорящий (Атом или Эли) светится и ждёт нажатия,
+   а если его нет на экране — ждём нажатия на текст.
    next=false — промис выполняется, когда фраза дозвучит (или сразу, если озвучки нет). */
 const AFTER_VOICE_MS = 700;
 let talk = null, sayText = '';
@@ -241,23 +242,28 @@ function endTalk() {
   $('#btext').classList.remove('tap');
   const r = talk.r; talk = null; return r;
 }
-function talkTap() { const r = endTalk(); if (r) { r(); return true; } return false; }
+/* нажатие ребёнка продолжает игру, только когда фраза ждёт нажатия (озвучки нет); auto — фраза дозвучала */
+function talkTap(auto = false) {
+  if (!talk || (!auto && !talk.tap)) return false;
+  endTalk()(); return true;
+}
 function say(text, o = {}) {
   endTalk();
   $('#btext').textContent = sayText = text; $('#replay').hidden = false;
   if (!(o.next ?? true)) return playVoice(text).then(() => {});
   const sp = speaker();
   return new Promise(r => {
-    talk = { r, sp };
-    if (sp) sp.classList.add('talk');
+    talk = { r, sp, tap: false };
     if (sp && sp === eli) hop(true);              // Эли говорит: подпрыгивает (наверху — дрожит)
-    if (!sp) $('#btext').classList.add('tap');    // говорящего нет на экране — ждём нажатия на сам текст
     voiceThenGo(talk);
   });
 }
-function voiceThenGo(t) {                         // озвучить текущую фразу; дозвучала — игра идёт дальше сама
-  playVoice(sayText).then(ok => {
-    if (ok && t && talk === t) wait(AFTER_VOICE_MS).then(() => { if (talk === t) talkTap(); });
+function voiceThenGo(t, interrupt = false) {      // озвучить текущую фразу; дозвучала — игра идёт дальше сама
+  playVoice(sayText, interrupt).then(ok => {
+    if (!t || talk !== t || ok === null) return;  // null — фразу перебили («ещё раз»): дальше ведёт новый вызов
+    if (ok) { wait(AFTER_VOICE_MS).then(() => { if (talk === t) talkTap(true); }); return; }
+    t.tap = true;                                 // озвучки нет — ждём нажатия
+    if (t.sp) t.sp.classList.add('talk'); else $('#btext').classList.add('tap');
   });
 }
 function hideSay() { endTalk(); $('#btext').textContent = sayText = ''; $('#replay').hidden = true; }
@@ -628,7 +634,7 @@ function buildAtom() {
   }
   if (!nucleus) nucleus = sprite('nucleus');
   setB(nucleus, L.nuc); put(nucleus, L.cx, L.nucY);
-  if (!eli) { eli = sprite('eli_hello', 'front'); eli.addEventListener('click', talkTap); }
+  if (!eli) { eli = sprite('eli_hello', 'front'); eli.addEventListener('click', () => talkTap()); }
   setB(eli, L.eli); put(eli, L.cx, eliY(lvl));
   if (auraEl) { setB(auraEl, L.eli * 1.7); put(auraEl, L.cx, eliY(lvl)); }
   setTarget(curTarget);
@@ -1182,7 +1188,7 @@ $('#home').onclick = () => {                     // «в начало» — с �
 };
 $('#btext').onclick = () => { if ($('#btext').classList.contains('tap')) talkTap(); };
 $('#replay').setAttribute('aria-label', T.replay);
-$('#replay').onclick = () => voiceThenGo(talk);  // ещё раз озвучить текущую фразу
+$('#replay').onclick = () => voiceThenGo(talk, true);   // ещё раз озвучить текущую фразу — сразу
 document.querySelectorAll('.lang').forEach(b => {
   b.classList.toggle('on', b.dataset.l === LANG);
   b.onclick = () => {
