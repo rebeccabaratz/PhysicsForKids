@@ -430,9 +430,11 @@ async function buildScene() {
   await wait(550);
   await emptyAtom();                               // шарики возвращаются в корзинки, атом пустой
   hideSay();
-  ['#binP', '#binE'].forEach(q => $(q).classList.add('call'));
+  await say(T.buildHelp, { next: false });         // пока Атом объясняет задание, всё стоит
+  if (!BS) return;
+  hideSay();
+  ['#binP', '#binE'].forEach(q => $(q).classList.add('call'));   // фраза дозвучала — корзинки зовут
   BS.busy = false;
-  say(T.buildHelp, { next: false });               // подсказка звучит, пока ребёнок выбирает шарики — играть можно сразу
   await new Promise(r => { BS.done = r; });        // ждём, пока откроют все 8
   await say(T.allFound, { next: false }); await wait(900);
   hideSay(); await flash(); root.remove(); BS = null;
@@ -557,8 +559,13 @@ async function addParticle(kind) {
   await fly(kind, from, atomTarget(kind), kind === 'p' ? 30 : BS.es);
   if (!BS) return;
   BS[kind]++; BS.hist.push(kind); renderAtom();
+  if (kind === 'p' && NEUT[BS.p] > 0 && !BS.told) {   // первый нейтрон: пока звучит «нейтроны — как клей», всё стоит
+    BS.told = true;
+    await say(T.neutrons, { next: false });
+    if (!BS) return;
+    hideSay();
+  }
   BS.busy = false;
-  if (kind === 'p' && NEUT[BS.p] > 0 && !BS.told) { BS.told = true; say(T.neutrons, { next: false }); wait(4500).then(() => { if (BS && $('#btext').textContent === T.neutrons) hideSay(); }); }
 }
 
 async function removeElectron(el) {             // нажали на лишний электрон — он улетает в корзинку
