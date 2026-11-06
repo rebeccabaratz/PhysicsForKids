@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Озвучка — прослушка</title>
+<style>
+  body{margin:0;padding:16px;font:16px/1.4 system-ui,sans-serif;background:#0b0d2a;color:#f3f5ff}
+  h1{font-size:20px;margin:0 0 12px}
+  .langs{display:flex;gap:8px;margin-bottom:14px}
+  .langs button{font:inherit;padding:6px 16px;border-radius:999px;border:1px solid #c3c8f2;background:none;color:#c3c8f2;cursor:pointer}
+  .langs button.on{background:#ffc53d;color:#3a2500;border-color:transparent}
+  ol{margin:0;padding:0;list-style:none;max-width:800px}
+  li{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.12)}
+  li button{flex:0 0 44px;height:44px;border-radius:50%;border:0;background:#ffc53d;color:#3a2500;font-size:18px;cursor:pointer}
+  li.playing button{background:#45e58a}
+  .t{flex:1}
+  .v{font-size:12px;color:#c3c8f2}
+  [dir=rtl] .t{font-size:18px}
+</style>
+</head>
+<body>
+<h1>Озвучка «Эли и фотон»: все фразы</h1>
+<div class="langs"><button data-l="he">עברית</button><button data-l="ru">Русский</button></div>
+<ol id="list"></ol>
+<script>
+// Список берётся из audio/<язык>/index.json — его пишет tools/make_voice.mjs.
+const player = new Audio();
+let lang = location.hash.slice(1) === 'ru' ? 'ru' : 'he';
+async function show() {
+  document.querySelectorAll('.langs button').forEach(b => b.classList.toggle('on', b.dataset.l === lang));
+  const idx = await (await fetch(`../audio/${lang}/index.json`, { cache: 'reload' })).json();
+  const list = document.getElementById('list'); list.innerHTML = '';
+  list.dir = lang === 'he' ? 'rtl' : 'ltr';
+  for (const [key, { voice, text }] of Object.entries(idx)) {
+    const li = document.createElement('li');
+    li.innerHTML = '<button type="button" aria-label="play">▶</button><div class="t"><div></div><div class="v"></div></div>';
+    li.querySelector('.t div').textContent = text;
+    li.querySelector('.v').textContent = `${voice} · ${key}.mp3`;
+    li.querySelector('button').onclick = () => {
+      document.querySelectorAll('li.playing').forEach(x => x.classList.remove('playing'));
+      player.src = `../audio/${lang}/${key}.mp3?${Date.now()}`; player.play(); li.classList.add('playing');
+      player.onended = () => li.classList.remove('playing');
+    };
+    list.appendChild(li);
+  }
+}
+document.querySelectorAll('.langs button').forEach(b => b.onclick = () => { lang = b.dataset.l; location.hash = lang; show(); });
+show();
+</script>
+</body>
+</html>
