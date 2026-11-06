@@ -423,6 +423,7 @@ async function buildScene() {
   hideSay();
   ['#binP', '#binE'].forEach(q => $(q).classList.add('call'));
   BS.busy = false;
+  say(T.buildHelp, { next: false });               // подсказка звучит, пока ребёнок выбирает шарики — играть можно сразу
   await new Promise(r => { BS.done = r; });        // ждём, пока откроют все 8
   await say(T.allFound, { next: false }); await wait(900);
   hideSay(); await flash(); root.remove(); BS = null;

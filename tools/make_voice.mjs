@@ -44,7 +44,7 @@ const PASS_SCORE = Number(gameJs.match(/PASS_SCORE:\s*(\d+)/)[1]);
 function phrases(T) {                               // все фразы, которые игра произносит через say()
   const out = [], add = (who, ...texts) => texts.forEach(text => out.push({ who, text }));
   add('narrator', T.cell, T.molecule);
-  add('atom', T.atomHello, T.neutrons, T.allFound);
+  add('atom', T.atomHello, T.buildHelp, T.neutrons, T.allFound);
   add('eli', ...T.s1, T.s1uv, T.s1yellow, T.s1drop, T.s1uvout, T.s2end, T.s2rainbow, T.s3intro, T.s3hint, T.pass,
     T.s4b, T.s4laser, T.s4wrong, T.s4end, T.s5intro(PASS_SCORE), T.win, T.almost, T.teaser);
   for (const c of ['red', 'cyan', 'violet']) add('eli', T.s4ok(T.photons[c][1]));   // «летят два красных фотона»
