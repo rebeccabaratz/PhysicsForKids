@@ -221,3 +221,18 @@ button:focus-visible{outline:3px solid #fff;outline-offset:3px}
 #ask{position:absolute;left:16px;right:16px;top:54px;z-index:20;text-align:center;pointer-events:none;line-height:1;
   font:800 clamp(30px,9vw,44px) var(--font);color:#fff;text-shadow:0 0 22px rgba(76,194,255,.8),0 3px 0 rgba(0,0,0,.35);
   animation:bob 2.4s ease-in-out infinite}
+
+/* глава «Салют»: атомы-шарики в корзинке, ракета с тремя окошками, картинка-образец, искры на canvas */
+#fire{position:absolute;inset:0;z-index:6}
+#ffx{position:absolute;left:0;top:0;pointer-events:none;z-index:12}
+.fatom{position:absolute;left:0;top:0;border:0;padding:0;border-radius:50%;cursor:pointer;z-index:10;
+  background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.9) 0,var(--ac) 40%,color-mix(in srgb,var(--ac) 50%,#000) 100%);
+  box-shadow:0 0 18px color-mix(in srgb,var(--ac) 55%,transparent);transition:background .4s,box-shadow .4s}
+.fatom.gray{--ac:#9aa0b8!important}
+.fatom.on{outline:4px solid #fff;outline-offset:4px}
+.fatom svg{display:block;width:100%;height:100%;pointer-events:none}
+#frocket{position:absolute;left:0;top:0;z-index:11;border:0;padding:0;background:none;cursor:pointer}
+#frocket svg{display:block;width:100%;height:100%;pointer-events:none}
+#fsample{position:absolute;z-index:9;border:3px solid rgba(255,255,255,.55);border-radius:14px;background:rgba(5,6,25,.6);pointer-events:none}
+#fsample canvas{display:block;width:100%;height:100%}
+@media (prefers-reduced-motion:reduce){.fatom{transition:none}}

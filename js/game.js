@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 7 сцен (#apple, #build, #eli1…#eli5); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 8 сцен (#apple, #build, #eli1…#eli5, #fire — глава «Салют»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -242,6 +242,7 @@ let talk = null, sayText = '';
 function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
+  if (phase === 'fire' && F) return F.eli;
   return null;
 }
 function endTalk() {
@@ -1240,7 +1241,216 @@ async function eliStage5() {                     // Этап 5 — провер�
   await say(T.win);
   await say(T.teaser);
   try { localStorage.setItem('eliBadge', '1'); localStorage.removeItem('eliNext'); } catch (e) {}
-  markDone('eli5'); goScene(-1);                 // на стартовый экран
+  markDone('eli5');                               // дальше — глава «Салют» (runFrom)
+}
+
+
+/* ===================== ГЛАВА «САЛЮТ» ===================== */
+/* Эли на фабрике салюта. Ребёнок кладёт в ракету 1–3 атома (нажатие на шарик; ещё раз — вынуть) и запускает её
+   нажатием на ракету: салют вспыхивает цветами этих атомов.
+   1) Эли объясняет и сам запускает натрий; 2) три свободных запуска; 3) три задания «как на картинке»;
+   4) испытание: шарики серые, цвет виден только в огне; после двух ошибок цвета возвращаются (подсказка).
+   Физика: огонь подбрасывает электроны атома вверх по ступенькам, спрыгивая, они выпускают фотоны;
+   у каждого атома своя лесенка — поэтому свой цвет (цвет пламени). Что на самом деле: в настоящем салюте горят
+   соли металлов, а не чистые атомы; красный обычно дают стронцием (литий тоже даёт малиновый, 670,8 нм);
+   синий — соединения меди (хлорид меди; в пламени медь сине-зелёная); калий в салюте почти не используют
+   (бледно-сиреневый); натрий — жёлтый (589 нм); барий — зелёный. */
+const FIRE_ATOMS = ['li', 'na', 'k', 'cu', 'ba'];
+const FLAME = { li: '#ff2a55', na: '#ffc21a', k: '#c49bff', cu: '#2f8cff', ba: '#6dff5a' };
+const FIRE_TASKS = [['li'], ['ba', 'na'], ['cu', 'k']];            // с цветными шариками
+const FIRE_TESTS = [['na'], ['cu'], ['li', 'ba'], ['k']];          // шарики серые
+const FACE = '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="14.5" cy="17" r="3" fill="#1b1e4a"/><circle cx="25.5" cy="17" r="3" fill="#1b1e4a"/>'
+  + '<path d="M13.5 24.5 Q20 30 26.5 24.5" fill="none" stroke="#1b1e4a" stroke-width="2.6" stroke-linecap="round"/></svg>';
+const ROCKET = '<svg viewBox="0 0 40 100" aria-hidden="true"><path class="fl" d="M13 86 Q20 104 27 86 Z" fill="#ffb52e" opacity="0"/>'
+  + '<path d="M6 70 L13 58 L13 84 L6 88 Z M34 70 L27 58 L27 84 L34 88 Z" fill="#3fb6ff"/>'
+  + '<path d="M20 2 Q33 18 31 32 L31 82 Q20 88 9 82 L9 32 Q7 18 20 2 Z" fill="#ff5a6e"/>'
+  + '<path d="M20 2 Q33 18 31 32 L9 32 Q7 18 20 2 Z" fill="#f3f5ff"/>'
+  + [42, 56, 70].map((y, i) => '<circle class="w' + i + '" cx="20" cy="' + y + '" r="5.6" fill="#1b1e4a" stroke="#f3f5ff" stroke-width="1.6"/>').join('')
+  + '</svg>';
+const WIN_Y = [0.42, 0.56, 0.70];                // окошки ракеты — доли её высоты
+let F = null;
+
+/* --- искры: один canvas на всю сцену --- */
+const FX = { ps: [], raf: 0, last: 0, ctx: null, cv: null };
+function fxAdd(p) { FX.ps.push(p); if (!FX.raf) { FX.last = performance.now(); FX.raf = requestAnimationFrame(fxFrame); } }
+function fxFrame(now) {
+  const c = FX.ctx; if (!c || !FX.cv.isConnected) { FX.ps = []; FX.raf = 0; return; }
+  const dt = Math.min(3, (now - FX.last) / 16.7) / K; FX.last = now;
+  c.clearRect(0, 0, W, H); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+  FX.ps = FX.ps.filter(p => (p.life -= dt) > 0);
+  for (const p of FX.ps) {
+    const d = Math.pow(p.drag, dt); p.vx *= d; p.vy = p.vy * d + p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    c.globalAlpha = Math.min(1, p.life / p.max * 1.6); c.strokeStyle = p.c; c.lineWidth = p.w;
+    c.beginPath(); c.moveTo(p.x - p.vx * 2.5, p.y - p.vy * 2.5); c.lineTo(p.x, p.y); c.stroke();
+  }
+  c.globalAlpha = 1;
+  FX.raf = FX.ps.length ? requestAnimationFrame(fxFrame) : 0;
+  if (!FX.raf) c.clearRect(0, 0, W, H);
+}
+function burst(x, y, cols) {                     // вспышка салюта: искры цветов cols разлетаются и падают
+  const s = Math.min(W, H) / 380, n = 80 + 30 * cols.length;
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, v = (1.4 + Math.random() * 3.4) * s, life = 55 + Math.random() * 50;
+    fxAdd({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life, max: life, w: 2.4 * s, c: cols[i % cols.length], g: 0.04 * s, drag: 0.975 });
+  }
+  for (let i = 0; i < 14; i++) {                 // белая серединка
+    const a = Math.random() * Math.PI * 2, v = Math.random() * 1.2 * s;
+    fxAdd({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 18, max: 18, w: 5 * s, c: '#fff', g: 0, drag: 0.9 });
+  }
+}
+function sparks(x, y) {                          // хвост летящей ракеты
+  const s = Math.min(W, H) / 380;
+  for (let i = 0; i < 2; i++) fxAdd({ x: x + (Math.random() - 0.5) * 6 * s, y, vx: (Math.random() - 0.5) * 0.8 * s, vy: (0.6 + Math.random()) * s,
+    life: 22, max: 22, w: 2 * s, c: i ? '#ffd27a' : '#ff8a3d', g: 0.02 * s, drag: 0.96 });
+}
+
+/* --- раскладка --- */
+function layoutFire() {
+  if (!F) return;
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  FX.cv.width = W * dpr; FX.cv.height = H * dpr; FX.cv.style.width = W + 'px'; FX.cv.style.height = H + 'px';
+  FX.ctx = FX.cv.getContext('2d'); FX.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  F.a = Math.max(54, Math.min(W * 0.16, H * 0.09, 84));
+  F.atoms.forEach((b, i) => {
+    b._x = W * (0.1 + i * 0.2); b._y = H * 0.9;
+    Object.assign(b.style, { width: F.a + 'px', height: F.a + 'px', left: b._x - F.a / 2 + 'px', top: b._y - F.a / 2 + 'px' });
+  });
+  F.rw = F.a * 1.05; F.rh = F.rw * 2.5; F.rx = W * 0.4; F.ry = H * 0.66;
+  F.topY = H * 0.32;
+  Object.assign(F.rocket.style, { width: F.rw + 'px', height: F.rh + 'px' });
+  if (!F.flying) F.rocket.style.transform = 'translate(' + (F.rx - F.rw / 2) + 'px,' + (F.ry - F.rh / 2) + 'px)';
+  setB(F.eli, L.eli * 1.1); put(F.eli, W * 0.82, H * 0.66, F.eli._k ?? 1);
+  const q = Math.min(W * 0.3, H * 0.17);
+  Object.assign(F.sample.style, { width: q + 'px', height: q + 'px', left: 16 + 'px', top: H * 0.13 + 'px' });
+  if (F.target) drawSample(F.target);
+}
+function drawSample(t) {                         // картинка-образец: салют нужных цветов
+  const cv = F.sample.firstChild, q = F.sample.clientWidth, dpr = Math.min(2, devicePixelRatio || 1);
+  cv.width = q * dpr; cv.height = q * dpr;
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.lineCap = 'round';
+  for (let i = 0; i < 24; i++) {
+    const a = i / 24 * Math.PI * 2, col = FLAME[t[i % t.length]];
+    c.strokeStyle = col; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(q / 2 + Math.cos(a) * q * 0.1, q / 2 + Math.sin(a) * q * 0.1); c.lineTo(q / 2 + Math.cos(a) * q * 0.34, q / 2 + Math.sin(a) * q * 0.34); c.stroke();
+    c.fillStyle = col; c.beginPath(); c.arc(q / 2 + Math.cos(a) * q * 0.41, q / 2 + Math.sin(a) * q * 0.41, 3, 0, Math.PI * 2); c.fill();
+  }
+}
+
+/* --- ракета: зарядить, запустить --- */
+function setGray(on) { F.gray = on; F.atoms.forEach(b => b.classList.toggle('gray', on)); paintRocket(); }
+function paintRocket() {
+  for (let i = 0; i < 3; i++) F.rocket.querySelector('.w' + i).setAttribute('fill', F.load[i] ? (F.gray ? '#9aa0b8' : FLAME[F.load[i]]) : '#1b1e4a');
+  F.atoms.forEach(b => b.classList.toggle('on', F.load.includes(b._k)));
+  F.rocket.classList.toggle('tappable', !!F.wait && F.load.length > 0);
+  F.atoms.forEach(b => b.classList.toggle('tappable', !!F.wait && !F.load.length));   // ракета пустая — шарики зовут
+}
+async function loadAtom(k, byEli = false) {      // шарик-копия летит в окошко ракеты; уже в ракете — вынуть
+  if (F.load.includes(k)) { F.load = F.load.filter(x => x !== k); sfx('pop'); paintRocket(); return; }
+  if (F.load.length >= 3) { sfx('buzz'); return; }
+  const b = F.atoms[FIRE_ATOMS.indexOf(k)];
+  sfx('tap'); playVoice(T.fireAtoms[k] + '.', true);
+  F.load.push(k); const i = F.load.length - 1, sz = F.a * 0.5;
+  const d = document.createElement('div'); d.className = 'fatom' + (F.gray ? ' gray' : ''); d.style.setProperty('--ac', FLAME[k]);
+  Object.assign(d.style, { pointerEvents: 'none', zIndex: 13, width: sz + 'px', height: sz + 'px' }); stage.appendChild(d);
+  const wx = F.rx - sz / 2, wy = F.ry - F.rh / 2 + F.rh * WIN_Y[i] - sz / 2;
+  await d.animate([{ transform: 'translate(' + (b._x - sz / 2) + 'px,' + (b._y - sz / 2) + 'px)' }, { transform: 'translate(' + wx + 'px,' + wy + 'px)' }],
+    { duration: (byEli ? 900 : 450) * K, easing: 'ease-in-out', fill: 'forwards' }).finished.catch(() => {});
+  d.remove(); paintRocket();
+}
+function waitLaunch() {                          // ребёнок заряжает ракету и нажимает на неё
+  return new Promise(r => { F.wait = r; paintRocket(); });
+}
+async function launch() {                        // → какие атомы были в ракете
+  const cols = F.load.map(k => FLAME[k]), r = F.rocket, x = F.rx;
+  F.flying = true; F.wait = null; paintRocket();
+  r.querySelector('.fl').setAttribute('opacity', '1'); sfx('launch');
+  const t0 = performance.now(), dur = 950 * K;
+  await new Promise(res => {
+    const step = now => {
+      const p = Math.min(1, (now - t0) / dur), y = F.ry + (F.topY - F.ry) * p * p;
+      r.style.transform = 'translate(' + (x - F.rw / 2) + 'px,' + (y - F.rh / 2) + 'px)'; sparks(x, y + F.rh * 0.45);
+      if (p < 1) requestAnimationFrame(step); else res();
+    };
+    requestAnimationFrame(step);
+  });
+  r.style.visibility = 'hidden'; sfx('boom'); burst(x, F.topY, cols);
+  const got = F.load.slice(); F.load = []; paintRocket();
+  await wait(1500);
+  r.querySelector('.fl').setAttribute('opacity', '0'); F.flying = false; layoutFire();
+  r.style.visibility = ''; await r.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 400 * K }).finished.catch(() => {});
+  return got;
+}
+const pose2 = n => { F.eli.src = 'img/' + n + '.webp'; };
+async function fireTask(t) {                     // салют как на картинке
+  F.target = t; F.sample.hidden = false; drawSample(t);
+  F.sample.animate([{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 400 * K, easing: 'ease-out' });
+  let fails = 0;
+  for (;;) {
+    await waitLaunch();
+    const got = await launch();
+    if (got.length === t.length && t.every(k => got.includes(k))) break;
+    fails++; sfx('oops'); pose2('eli_surprised');
+    await say(T.fireWrong, { next: false }); hideSay(); pose2('eli_hello');
+    if (F.gray && fails >= 2) setGray(false);     // подсказка: цвета вернулись — до конца этого задания
+  }
+  sfx('ding'); pose2('eli_jump'); await bounce(F.eli, 1.12, 0.9); await wait(500); pose2('eli_hello');
+  F.target = null; F.sample.hidden = true;
+}
+
+async function fireScene() {
+  await flash();
+  hop(false); clearRiver(); unask(); hideSay();
+  for (const c of [...stage.children]) if (!['top', 'counter', 'flash', 'start', 'confirm'].includes(c.id)) c.remove();
+  eli = null; spectrumOn = false; $('#score').innerHTML = '';
+  phase = 'fire'; setLabel(T.fireLabel);
+  const root = document.createElement('div'); root.id = 'fire'; stage.appendChild(root);
+  FX.cv = document.createElement('canvas'); FX.cv.id = 'ffx'; root.appendChild(FX.cv);
+  F = { load: [], wait: null, gray: false, flying: false, target: null };
+  F.atoms = FIRE_ATOMS.map(k => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'fatom'; b._k = k;
+    b.style.setProperty('--ac', FLAME[k]); b.innerHTML = FACE; b.setAttribute('aria-label', T.fireAtoms[k]);
+    b.onclick = () => { if (F.wait && !F.flying) loadAtom(k); };
+    root.appendChild(b); return b;
+  });
+  F.rocket = document.createElement('button'); F.rocket.type = 'button'; F.rocket.id = 'frocket'; F.rocket.innerHTML = ROCKET;
+  F.rocket.onclick = () => { if (F.wait && F.load.length && !F.flying) { sfx('tap'); F.wait(); } };
+  root.appendChild(F.rocket);
+  F.sample = document.createElement('div'); F.sample.id = 'fsample'; F.sample.hidden = true;
+  F.sample.appendChild(document.createElement('canvas')); root.appendChild(F.sample);
+  F.eli = sprite('eli_hello', 'front'); F.eli.addEventListener('click', () => talkTap());
+  layoutFire();
+  await unflash();
+
+  for (const t of T.fire) await say(t);
+  await say(T.fireDemo, { next: false });          // Эли сам кладёт натрий и запускает
+  await loadAtom('na', true); await wait(300);
+  await launch();
+  await say(T.fireDemoEnd);
+  for (const t of T.fireWhy) await say(t);
+  await say(T.fireFree, { next: false }); hideSay();
+  for (let i = 0; i < 3; i++) { await waitLaunch(); await launch(); }   // свободная игра: три ракеты
+  await say(T.fireTask, { next: false }); hideSay();
+  for (const t of FIRE_TASKS) await fireTask(t);
+  setGray(true);
+  for (const t of T.fireGray) await say(t, { next: false });
+  hideSay();
+  for (const t of FIRE_TESTS) { setGray(true); await fireTask(t); }
+  setGray(false);
+  for (let i = 0; i < 6; i++) {                    // финал: салют всеми цветами
+    const x = W * (0.2 + Math.random() * 0.6), y = H * (0.2 + Math.random() * 0.2);
+    const cols = FIRE_ATOMS.filter(() => Math.random() < 0.5).map(k => FLAME[k]);
+    sfx('boom'); burst(x, y, cols.length ? cols : [FLAME.na]); await wait(450);
+  }
+  await wait(800);
+  await say(T.fireWin);
+  await say(T.fireBye);
+  hideSay();                                       // «Ой, мне на работу» — Эли растворяется облачком
+  sfx('whoosh');
+  await F.eli.animate([{ filter: 'blur(0)', opacity: 1, transform: tf(F.eli) }, { filter: 'blur(14px)', opacity: 0, transform: tf(F.eli) + ' scale(1.6)' }],
+    { duration: 1200 * K, easing: 'ease-in', fill: 'forwards' }).finished.catch(() => {});
+  await wait(800);
+  try { localStorage.removeItem('eliNext'); } catch (e) {}
+  markDone('fire'); goScene(-1);                 // последняя глава — на стартовый экран
 }
 
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
@@ -1248,8 +1458,8 @@ async function eliStage5() {                     // Этап 5 — провер�
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5'];
-const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5 };
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire'];
+const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene };
 let cur = -1;
 const DONE = new Set();
 try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
@@ -1282,6 +1492,7 @@ function relayout() {
   if (phase === 'A') { layoutA(); placeCounter(); }
   if (phase === 'atom') { const h = !!hopAnim; buildAtom(); if (h) hop(true); }
   if (phase === 'build' && BS) { layoutBuild(); syncBins(); renderAtom(); }
+  if (phase === 'fire') layoutFire();
 }
 addEventListener('resize', () => { clearTimeout(relayout._t); relayout._t = setTimeout(relayout, 150); });
 

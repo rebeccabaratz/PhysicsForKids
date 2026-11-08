@@ -113,6 +113,8 @@ const SFX = {
   sparkle: t => [1318, 1568, 2093, 2637].forEach((f, i) => tone(t + i * 0.07, f, 0.3, 'sine', 0.18)),
   fanfare: t => [523, 659, 784, 1046].forEach((f, i) => tone(t + i * 0.13, f, i === 3 ? 0.8 : 0.22, 'triangle', 0.3)),
   boing:   t => tone(t, 220, 0.25, 'sine', 0.3, 520),
+  launch:  t => { noise(t, 0.9, 0.22, 600, 2500, 1.2); tone(t, 500, 0.9, 'sine', 0.06, 1500); },   // «Салют»: ракета взлетает со свистом
+  boom:    t => { noise(t, 0.7, 0.7, 260, 70, 0.8); tone(t, 110, 0.45, 'sine', 0.35, 45); noise(t + 0.12, 0.9, 0.12, 4000, 2500, 1); },
 };
 function sfx(name, delayMs = 0) {
   if (!soundOn() || !SFX[name]) return;
