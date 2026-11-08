@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -242,6 +242,7 @@ let talk = null, sayText = '';
 function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
+  if (phase === 'react' && RX) return RX.eli;
   if (phase === 'chem' && CH) return CH.eli;
   if (phase === 'sky' && SK) return SK.eli;
   if (phase === 'uv' && UV) return UV.eli;
@@ -2386,13 +2387,180 @@ async function chemScene() {
   await eliVanish(CH.eli);
 }
 
+
+/* ===================== ГЛАВА «РЕАКЦИИ» ===================== */
+/* Пять коротких уровней, в каждом — одно-два нажатия.
+   1) Растворяем: соль в воде распадается на Na⁺ и Cl⁻; сахар остаётся целыми молекулами.
+   2) Огонь: метан CH₄ + 2 O₂ → CO₂ + 2 H₂O; атомы не исчезают и не появляются — только меняются местами
+      (счёт до и после одинаковый: 1 C, 4 H, 4 O).
+   3) Пузырьки: сода + уксус → углекислый газ (пузырьки), вода и ацетат натрия (его не показываем).
+   4) Красная капуста: сок фиолетовый; с уксусом (кислота) — красный/розовый, с содой (слабая щёлочь) — бирюзовый
+      (с сильной щёлочью был бы зелёно-жёлтым), с водой — остаётся фиолетовым.
+   5) Ржавчина: железо + кислород + вода → ржавчина; гвоздь в доме (сухо) не ржавеет, под дождём — ржавеет. */
+const GLASS = (liq, lvl = 0.62) => `<svg viewBox="0 0 100 120" aria-hidden="true"><path d="M18 8 H82 L74 112 H26 Z" fill="rgba(220,235,255,.12)" stroke="#dff3ff" stroke-width="3"/>`
+  + `<path d="M${18 + 8 * (1 - lvl)} ${112 - 104 * lvl} H${82 - 8 * (1 - lvl)} L74 112 H26 Z" fill="${liq}" opacity=".85"/></svg>`;
+const BOTTLE = (c, lab) => `<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="42" y="6" width="16" height="14" rx="3" fill="#9aa0c8"/><path d="M40 20 H60 V32 Q74 38 74 52 V86 Q74 92 68 92 H32 Q26 92 26 86 V52 Q26 38 40 32 Z" fill="${c}" stroke="#dff3ff" stroke-width="3"/>${lab}</svg>`;
+const SPOON = c => `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M20 80 L56 44" stroke="#c9cfee" stroke-width="8" stroke-linecap="round"/><ellipse cx="66" cy="34" rx="22" ry="16" fill="#c9cfee" transform="rotate(-45 66 34)"/><ellipse cx="66" cy="32" rx="14" ry="9" fill="${c}" transform="rotate(-45 66 32)"/></svg>`;
+const NAIL = '<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="22" y="12" width="56" height="10" rx="4" fill="currentColor"/><path d="M44 22 H56 V80 L50 94 L44 80 Z" fill="currentColor"/></svg>';
+const CLOCK = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40" fill="#f3f5ff" stroke="#9aa0c8" stroke-width="5"/><line class="hm" x1="50" y1="50" x2="50" y2="22" stroke="#1b1e4a" stroke-width="5" stroke-linecap="round"/><line class="hh" x1="50" y1="50" x2="68" y2="50" stroke="#1b1e4a" stroke-width="6" stroke-linecap="round"/></svg>';
+const BURNER = '<svg viewBox="0 0 100 60" aria-hidden="true"><rect x="10" y="40" width="80" height="14" rx="6" fill="#6b7088"/><ellipse cx="50" cy="40" rx="30" ry="7" fill="#9aa0c8"/><path class="fl" d="M30 38 Q34 14 40 30 Q44 6 50 28 Q56 6 60 30 Q66 14 70 38 Z" fill="#4fb6ff" opacity="0"/></svg>';
+let RX = null;
+
+function rxEl(cls, html = '', button = false) {
+  const e = document.createElement(button ? 'button' : 'div'); if (button) e.type = 'button';
+  e.className = 'rxo ' + cls; e.innerHTML = html; RX.root.appendChild(e); return e;
+}
+const rxPl = (e, x, y, w, h = w) => Object.assign(e.style, { left: x - w / 2 + 'px', top: y - h / 2 + 'px', width: w + 'px', height: h + 'px' });
+const rxA = () => Math.max(56, Math.min(W * 0.17, H * 0.09, 84));
+function rxClear() { RX.root.innerHTML = ''; }
+function rxBall(k, x, y, d, sign = '') {          // маленький шарик-атом (цвета — как в «Веществах»)
+  const e = rxEl('rxball'); e.style.setProperty('--bc', CH_ATOMS[k].c); rxPl(e, x, y, d); if (sign) e.innerHTML = `<b>${sign}</b>`; return e;
+}
+function rxWander(e, r) {                         // частица бродит в стакане
+  e.animate([0, 1, 2, 3, 0].map(i => ({ transform: `translate(${Math.sin(i * 2.1 + r) * 10}px,${Math.cos(i * 1.7 + r) * 8}px)` })),
+    { duration: (2600 + r * 300) * K, iterations: Infinity, easing: 'ease-in-out' });
+}
+
+/* 1) растворяем */
+async function rxDissolve() {
+  rxClear();
+  const gw = Math.min(W * 0.36, H * 0.24), gy = H * 0.44, a = rxA();
+  const glasses = [W * 0.28, W * 0.72].map(x => { const g = rxEl('', GLASS('#4fb6ff55')); rxPl(g, x, gy, gw, gw * 1.2); return g; });
+  const salt = rxEl('', SPOON('#f3f5ff'), true), sugar = rxEl('', SPOON('#ffe9c4'), true);
+  rxPl(salt, W * 0.28, H * 0.8, a); rxPl(sugar, W * 0.72, H * 0.8, a);
+  await say(T.rxDissolve[0], { next: false }); hideSay();
+  await tapObj(salt); sfx('pop'); salt.remove();
+  for (let i = 0; i < 5; i++) {                   // соль: пары распадаются на «+» и «−»
+    const x = W * 0.28 + (i - 2) * gw * 0.14, y = gy + gw * 0.25 + (i % 2) * gw * 0.18;
+    const na = rxBall('Na', x, y, a * 0.36, '+'), cl = rxBall('Cl', x + a * 0.36, y, a * 0.4, '−');
+    await wait(150); rxWander(na, i); rxWander(cl, i + 2.5);
+  }
+  await wait(700);
+  await say(T.rxDissolve[1], { next: false }); hideSay();
+  await tapObj(sugar); sfx('pop'); sugar.remove();
+  for (let i = 0; i < 4; i++) {                   // сахар: целые молекулы-колечки
+    const e = rxEl('rxsug'); rxPl(e, W * 0.72 + (i - 1.5) * gw * 0.18, gy + gw * 0.22 + (i % 2) * gw * 0.2, a * 0.5);
+    await wait(150); rxWander(e, i * 1.3);
+  }
+  await wait(700);
+  await say(T.rxDissolve[2]);
+  void glasses;
+}
+
+/* 2) огонь: атомы меняются местами */
+async function rxFire() {
+  rxClear();
+  const a = rxA(), u = Math.min(W * 0.1, H * 0.06), cx = W / 2, cy = H * 0.4, d = { C: u * 1.1, H: u * 0.72, O: u * 1.1 };
+  const burner = rxEl('', BURNER, true); rxPl(burner, cx, H * 0.78, a * 1.8, a * 1.1);
+  const before = [['C', -1.6, 0], ['H', -2.4, 0], ['H', -0.8, 0], ['H', -1.6, -0.8], ['H', -1.6, 0.8], ['O', 0.9, -0.9], ['O', 1.7, -0.9], ['O', 0.9, 0.9], ['O', 1.7, 0.9]];
+  const after = [['C', -1.3, 0], ['H', 0.6, -1.3], ['H', 1.8, -1.3], ['H', 0.6, 0.7], ['H', 1.8, 0.7], ['O', -2.1, 0], ['O', 1.2, -0.85], ['O', -0.5, 0], ['O', 1.2, 1.15]];
+  const balls = before.map(([k, x, y]) => rxBall(k, cx + x * u, cy + y * u, d[k]));
+  const count = rxEl('rxcount'); count.innerHTML = [['C', 1], ['H', 4], ['O', 4]].map(([k, n]) => `<span>${[...Array(n)].map(() => `<i style="--bc:${CH_ATOMS[k].c}"></i>`).join('')}</span>`).join('');
+  Object.assign(count.style, { left: '16px', right: '16px', top: H * 0.13 + 'px' });
+  await say(T.rxFire[0], { next: false }); hideSay();
+  await tapObj(burner); burner.querySelector('.fl').setAttribute('opacity', '1'); sfx('whoosh');
+  await Promise.all(balls.map(b => b.animate([0, -4, 4, -3, 3, 0].map(x => ({ transform: `translate(${x}px,${-x}px)` })), { duration: 700 * K }).finished.catch(() => {})));
+  balls.forEach((b, i) => { b.style.transition = `left ${1.2 * K}s ease-in-out, top ${1.2 * K}s ease-in-out`;
+    const [k, x, y] = after[i]; requestAnimationFrame(() => rxPl(b, cx + x * u, cy + y * u, d[k])); });
+  sfx('sparkle'); await wait(1500);
+  for (const t of T.rxFire.slice(1)) await say(t);
+}
+
+/* 3) пузырьки */
+async function rxBubbles() {
+  rxClear();
+  const gw = Math.min(W * 0.42, H * 0.26), gx = W / 2, gy = H * 0.44, a = rxA();
+  const g = rxEl('', GLASS('#ffe0a855')); rxPl(g, gx, gy, gw, gw * 1.2);
+  const soda = rxEl('', CH_ICON.soda, true); rxPl(soda, W * 0.25, H * 0.8, a);
+  await say(T.rxBubbles[0], { next: false }); hideSay();
+  await tapObj(soda); sfx('pop');
+  for (let i = 0; i < 26; i++) {                  // пузырьки углекислого газа поднимаются
+    const b = rxEl('rxbub'), s = 8 + (i % 4) * 4, x = gx + (Math.sin(i * 2.3) * 0.32) * gw;
+    rxPl(b, x, gy + gw * 0.5, s);
+    b.animate([{ transform: 'translateY(0)', opacity: 1 }, { transform: `translateY(${-gw * 0.9}px)`, opacity: 0 }], { duration: (1400 + (i % 5) * 200) * K, delay: i * 90 * K, iterations: 3 });
+  }
+  if (soundOn()) for (let i = 0; i < 12; i++) sfx('pop', i * 160);
+  await wait(1500);
+  for (const t of T.rxBubbles.slice(1)) await say(t);
+}
+
+/* 4) красная капуста */
+async function rxCabbage() {
+  rxClear();
+  const gw = Math.min(W * 0.42, H * 0.26), gx = W / 2, gy = H * 0.42, a = rxA();
+  const g = rxEl('', GLASS('#8a3fd1')); rxPl(g, gx, gy, gw, gw * 1.2);
+  const liquids = { vinegar: '#ff4f8b', soda: '#25c7c2', water: '#8a3fd1' };
+  const bottles = {
+    vinegar: rxEl('', CH_ICON.vinegar, true), soda: rxEl('', CH_ICON.soda, true),
+    water: rxEl('', BOTTLE('rgba(79,182,255,.45)', ''), true),
+  };
+  ['vinegar', 'water', 'soda'].forEach((k, i) => rxPl(bottles[k], W * (0.2 + i * 0.3), H * 0.82, a));
+  const setLiq = c => { g.innerHTML = GLASS(c); };
+  for (const t of T.rxCabbage.slice(0, 2)) await say(t);
+  for (const [want, phrase] of [['vinegar', T.rxCabRed], ['soda', T.rxCabTurq]]) {
+    setLiq(liquids.water);
+    await say(phrase, { next: false }); hideSay();
+    for (;;) {
+      const k = await new Promise(r => { for (const b in bottles) { bottles[b].classList.add('tappable'); bottles[b].onclick = () => r(b); } });
+      for (const b in bottles) { bottles[b].classList.remove('tappable'); bottles[b].onclick = null; }
+      sfx('pop'); setLiq(liquids[k]); await wait(1000);
+      if (k === want) { sfx('ding'); break; }
+      sfx('oops'); await say(T.rxCabWrong, { next: false }); hideSay(); setLiq(liquids.water);
+    }
+  }
+  await say(T.rxCabbage[2]);
+}
+
+/* 5) ржавчина */
+async function rxRust() {
+  rxClear();
+  const a = rxA();
+  const house = rxEl('', '<svg viewBox="0 0 100 80" aria-hidden="true"><path d="M6 36 L50 6 L94 36 Z" fill="#ff8a3d"/><rect x="14" y="36" width="72" height="40" fill="rgba(243,245,255,.14)" stroke="#c9cfee" stroke-width="2"/></svg>');
+  rxPl(house, W * 0.28, H * 0.45, W * 0.4, W * 0.32);
+  const cloud = rxEl('', CLOUD); rxPl(cloud, W * 0.72, H * 0.24, a * 1.8, a * 1.1);
+  for (let i = 0; i < 10; i++) { const r = rxEl('rxrain'); rxPl(r, W * (0.6 + (i % 5) * 0.05), H * (0.32 + Math.floor(i / 5) * 0.08), 3, 16);
+    r.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(60px)', opacity: 0 }], { duration: 800 * K, delay: i * 80 * K, iterations: Infinity }); }
+  const n1 = rxEl('rxnail', NAIL), n2 = rxEl('rxnail', NAIL);
+  rxPl(n1, W * 0.28, H * 0.5, a); rxPl(n2, W * 0.72, H * 0.5, a);
+  const clock = rxEl('', CLOCK, true); rxPl(clock, W / 2, H * 0.8, a);
+  for (const t of T.rxRust.slice(0, 2)) await say(t);
+  await say(T.rxRust[2], { next: false }); hideSay();
+  await tapObj(clock);
+  clock.querySelector('.hm').style.transformOrigin = '50px 50px';   // стрелка крутится — прошло много дней
+  clock.querySelector('.hm').animate([{ transform: 'rotate(0)' }, { transform: 'rotate(1440deg)' }], { duration: 2400 * K, easing: 'ease-in-out' });
+  sfx('tick'); for (let i = 1; i < 10; i++) sfx('tick', i * 240);
+  n2.animate([{ color: '#b9c0d8' }, { color: '#b5531c' }], { duration: 2400 * K, fill: 'forwards' });
+  await wait(2600);
+  for (const t of T.rxRust.slice(3)) await say(t);
+}
+
+async function reactScene() {
+  await flash();
+  clearStage();
+  phase = 'react'; setLabel(T.rxLabel);
+  RX = {};
+  RX.root = document.createElement('div'); RX.root.id = 'rx'; stage.appendChild(RX.root);
+  RX.eli = sprite('eli_hello', 'front'); RX.eli.addEventListener('click', () => talkTap());
+  setB(RX.eli, L.eli * 0.8); put(RX.eli, W * 0.9, H * 0.66);
+  await unflash();
+  for (const t of T.rxIntro) await say(t);
+  for (const lvl of [rxDissolve, rxFire, rxBubbles, rxCabbage, rxRust]) {
+    await lvl();
+    hideSay(); await flash(); await unflash();
+  }
+  await say(T.rxWin);
+  await say(T.fireBye);
+  await eliVanish(RX.eli);
+}
+function rxRelayout() { if (RX) { setB(RX.eli, L.eli * 0.8); put(RX.eli, W * 0.9, H * 0.66); } }
+
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem'];
-const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene };
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react'];
+const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene };
 let cur = -1;
 const DONE = new Set();
 try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
@@ -2428,6 +2596,7 @@ function relayout() {
   if (phase === 'atom') { const h = !!hopAnim; buildAtom(); if (h) hop(true); }
   if (phase === 'build' && BS) { layoutBuild(); syncBins(); renderAtom(); }
   if (phase === 'fire') layoutFire();
+  if (phase === 'react') rxRelayout();
   if (phase === 'chem') chLayout();
   if (phase === 'sky') skyRender();
   if (phase === 'uv') uvRelayout();

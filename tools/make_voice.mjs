@@ -93,6 +93,7 @@ function phrases(T) {                               // все фразы, кот
   add('eli', ...T.uvIntro, ...T.uvLadder, T.uvRoom, T.uvFind, T.uvOff, ...T.uvAfter, ...T.uvBeach, T.uvBurn, T.uvCatch, T.uvCream, T.uvSafe, T.uvWin);   // «Невидимый свет»
   add('eli', ...T.skyIntro, ...T.skyWhy, ...T.skyAtoms, T.skyPaint, ...T.skyStars, T.skyFind, T.skySunDone, T.skyHe, T.skyWin, ...Object.values(T.elementsSky).map(n => n + '.'));   // «Небо»
   add('eli', ...T.chIntro, T.chHow, T.chWrong, ...Object.values(T.chNames).map(n => n + '.'), ...Object.values(T.chMake), ...Object.values(T.chAbout).flat(), T.chWin);   // «Вещества»
+  add('eli', ...T.rxIntro, ...T.rxDissolve, ...T.rxFire, ...T.rxBubbles, ...T.rxCabbage, T.rxCabRed, T.rxCabTurq, T.rxCabWrong, ...T.rxRust, T.rxWin);   // «Реакции»
   for (const c of ['red', 'cyan', 'violet']) add('eli', T.s4ok(T.photons[c][1]));   // «летят два красных фотона»
   for (const m of [3, 4, 5]) for (const t of [3, 4, 5]) if (m !== t) add('eli', T.wrongStep(m, t));
   return out;
