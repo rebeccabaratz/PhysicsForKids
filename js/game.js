@@ -1110,7 +1110,7 @@ async function eliStage4() {                     // Этап 4 — вниз (с�
   setLabel(T.stage(4));
   await liftToTwo(false, ['uv', 'cyan', 'yellow']);
   await downTask(3, ['cyan', 'red', 'violet'], { explain: T.s4b, dream: true });
-  await downTask(4, ['red', 'cyan', 'violet'], { text: T.s4laser });
+  await downTask(4, ['red', 'cyan', 'violet']);
   await downTask(5, ['cyan', 'violet', 'red']);
   await laserGame();
   await downHome(T.s4end);
