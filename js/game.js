@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции», #leaf — «Лист делает сахар»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -242,6 +242,7 @@ let talk = null, sayText = '';
 function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
+  if (phase === 'leaf' && LF) return LF.eli;
   if (phase === 'react' && RX) return RX.eli;
   if (phase === 'chem' && CH) return CH.eli;
   if (phase === 'sky' && SK) return SK.eli;
@@ -2554,13 +2555,121 @@ async function reactScene() {
 }
 function rxRelayout() { if (RX) { setB(RX.eli, L.eli * 0.8); put(RX.eli, W * 0.9, H * 0.66); } }
 
+
+/* ===================== ГЛАВА «ЛИСТ ДЕЛАЕТ САХАР» ===================== */
+/* Фотосинтез: 6 CO₂ + 6 H₂O + свет → C₆H₁₂O₆ (сахар) + 6 O₂.
+   Ребёнок даёт листу свет (солнце: хлорофилл глотает красный и синий — как в главе «Цвет»), воду (6 капель от корней)
+   и углекислый газ (6 молекул из воздуха). Лист делает сахар — он уходит в яблоко, яблоко растёт; кислород выходит
+   в воздух (почти весь кислород, которым мы дышим, сделали растения). Круг замкнулся: молекула сахара из главы
+   «Яблоко» сделана из воздуха и воды с помощью света. */
+const LEAF_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M10 88 C10 40 44 10 90 10 C90 58 58 88 10 88 Z" fill="#3fbf55" stroke="#9ff2a8" stroke-width="2"/>'
+  + '<path d="M14 84 Q50 50 86 14 M40 60 Q36 44 38 34 M56 44 Q64 40 74 40 M30 70 Q46 70 56 66" stroke="#2a8a3c" stroke-width="2.5" fill="none"/></svg>';
+const DROP_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 8 Q80 50 80 64 A30 30 0 0 1 20 64 Q20 50 50 8 Z" fill="#4fb6ff"/><ellipse cx="40" cy="60" rx="6" ry="10" fill="#fff" opacity=".6"/></svg>';
+const CO2_SVG = '<svg viewBox="0 0 100 50" aria-hidden="true"><circle cx="20" cy="25" r="16" fill="#ff4a4a"/><circle cx="50" cy="25" r="18" fill="#4a4f66"/><circle cx="80" cy="25" r="16" fill="#ff4a4a"/></svg>';
+const O2_SVG = '<svg viewBox="0 0 100 50" aria-hidden="true"><circle cx="34" cy="25" r="18" fill="#ff4a4a"/><circle cx="66" cy="25" r="18" fill="#ff4a4a"/></svg>';
+const SUGAR_SVG = '<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,10 85,30 85,70 50,90 15,70 15,30" fill="none" stroke="#ffe9c4" stroke-width="9" stroke-linejoin="round"/><circle cx="50" cy="10" r="7" fill="#ff4a4a"/></svg>';
+let LF = null;
+
+function lfEl(cls, html = '', button = false) {
+  const e = document.createElement(button ? 'button' : 'div'); if (button) e.type = 'button';
+  e.className = 'lfo ' + cls; e.innerHTML = html; LF.root.appendChild(e); return e;
+}
+const lfPl = (e, x, y, w, h = w) => Object.assign(e.style, { left: x - w / 2 + 'px', top: y - h / 2 + 'px', width: w + 'px', height: h + 'px' });
+function lfGeo() {
+  const s = Math.min(W * 0.46, H * 0.26);
+  return { s, lx: W * 0.55 - 0.4 * s, ly: H * 0.5 - 0.38 * s,   // черешок листа — на верхушке ствола
+    sunX: W * 0.15, sunY: H * 0.17, ax: W * 0.76, ay: H * 0.5, groundY: H * 0.84, a: Math.max(48, Math.min(W * 0.13, H * 0.07, 70)) };
+}
+function lfLayout() {
+  if (!LF) return;
+  const g = lfGeo();
+  lfPl(LF.leaf, g.lx, g.ly, g.s); lfPl(LF.sun, g.sunX, g.sunY, g.a * 1.4);
+  lfPl(LF.apple, g.ax, g.ay, g.a * (0.5 + LF.appleK * 0.7));
+  Object.assign(LF.trunk.style, { left: W * 0.55 - 7 + 'px', top: H * 0.5 + 'px', width: '14px', height: g.groundY - H * 0.5 + 'px' });
+  Object.assign(LF.branch.style, { left: W * 0.55 + 'px', top: H * 0.5 - 4 + 'px', width: g.ax - W * 0.55 + 'px', height: '8px' });
+  Object.assign(LF.ground.style, { top: g.groundY + 'px' });
+  Object.assign(LF.meter.style, { left: '16px', right: '16px', top: H * 0.12 + 'px' });
+  setB(LF.eli, L.eli * 0.8); put(LF.eli, W * 0.88, H * 0.72, LF.eli._k ?? 1);
+}
+function lfMeter() {                             // три строки по 6 точек: свет, вода, углекислый газ
+  LF.meter.innerHTML = [['light', '#ffc53d'], ['water', '#4fb6ff'], ['co2', '#9aa0c8']].map(([k, c]) =>
+    `<span>${[...Array(6)].map((_, i) => `<i style="background:${i < LF.got[k] ? c : 'transparent'};border-color:${c}"></i>`).join('')}</span>`).join('');
+}
+function lfFly(el, x0, y0, x1, y1, ms) {
+  return el.animate([{ transform: `translate(${x0}px,${y0}px)` }, { transform: `translate(${x1}px,${y1}px)` }], { duration: ms * K, easing: 'ease-in', fill: 'forwards' }).finished.catch(() => {});
+}
+async function lfLight() {                       // солнце: красные и синие фотоны летят в лист
+  const g = lfGeo();
+  await tapObj(LF.sun);
+  for (let i = 0; i < 6; i++) {
+    const p = document.createElement('i'); p.className = 'lfph'; p.style.background = i % 2 ? '#3d6bff' : '#ff3b3b'; LF.root.appendChild(p);
+    lfFly(p, g.sunX, g.sunY, g.lx + (Math.random() - 0.5) * g.s * 0.3, g.ly, 900).then(() => { p.remove(); LF.got.light++; lfMeter(); sfx('gulp'); });
+    await wait(260);
+  }
+  await wait(1000);
+}
+function lfCollect(kind, n, place, svg, w, h) {  // ребёнок нажимает на n предметов; каждый летит в лист
+  const g = lfGeo();
+  return new Promise(res => {
+    let left = n;
+    for (let i = 0; i < n; i++) {
+      const [x, y] = place(i), e = lfEl('lfitem tappable', svg, true); lfPl(e, x, y, w, h);
+      e.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-6px)' }, { transform: 'translateY(0)' }], { duration: (1600 + i * 120) * K, iterations: Infinity });
+      e.onclick = async () => {
+        e.onclick = null; e.classList.remove('tappable'); sfx('tap');
+        const r = e.getBoundingClientRect(), st = stage.getBoundingClientRect();
+        e.style.left = e.style.top = '0px'; e.getAnimations().forEach(a => a.cancel());
+        await lfFly(e, r.left - st.left, r.top - st.top, g.lx - w / 2, g.ly - h / 2, 700);
+        e.remove(); LF.got[kind]++; lfMeter(); sfx('gulp');
+        if (!--left) setTimeout(res, 500);
+      };
+    }
+  });
+}
+async function leafScene() {
+  await flash();
+  clearStage();
+  phase = 'leaf'; setLabel(T.lfLabel);
+  LF = { got: { light: 0, water: 0, co2: 0 }, appleK: 0 };
+  LF.root = document.createElement('div'); LF.root.id = 'lf'; stage.appendChild(LF.root);
+  LF.ground = lfEl('lfground'); LF.trunk = lfEl('lftrunk'); LF.branch = lfEl('lftrunk');
+  LF.leaf = lfEl('lfleaf', LEAF_SVG); LF.sun = lfEl('', SUN, true);
+  LF.apple = lfEl('', `<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="47" y="8" width="6" height="18" rx="3" fill="#7a4a24"/><path d="${COL_SHAPES.apple}" fill="#ff3b3b"/></svg>`);
+  LF.meter = lfEl('lfmeter'); lfMeter();
+  LF.eli = sprite('eli_hello', 'front'); LF.eli.addEventListener('click', () => talkTap());
+  lfLayout();
+  await unflash();
+  const g = lfGeo();
+  for (const t of T.lfIntro) await say(t);
+  await say(T.lfSun, { next: false }); hideSay();
+  await lfLight();
+  await say(T.lfWater, { next: false }); hideSay();
+  await lfCollect('water', 6, i => [W * (0.12 + i * 0.12), g.groundY + (H - g.groundY) * 0.45], DROP_SVG, g.a * 0.6, g.a * 0.6);
+  await say(T.lfCo2, { next: false }); hideSay();
+  await lfCollect('co2', 6, i => [W * (0.14 + (i % 3) * 0.3), H * (0.62 + Math.floor(i / 3) * 0.1)], CO2_SVG, g.a * 0.9, g.a * 0.45);
+  // лист работает: сахар — в яблоко, кислород — в воздух
+  LF.leaf.classList.add('lfglow'); sfx('sparkle'); await wait(900);
+  for (let i = 0; i < 6; i++) {
+    const o = lfEl('lfitem', O2_SVG); lfPl(o, 0, 0, g.a * 0.6, g.a * 0.3); o.style.left = o.style.top = '0px';
+    lfFly(o, g.lx + (i - 2.5) * 14, g.ly, g.lx + (i - 2.5) * 40, -40, 1800 + i * 150).then(() => o.remove());
+  }
+  const su = lfEl('lfitem', SUGAR_SVG); lfPl(su, 0, 0, g.a * 0.7); su.style.left = su.style.top = '0px';
+  await lfFly(su, g.lx - g.a * 0.35, g.ly - g.a * 0.35, g.ax - g.a * 0.35, g.ay - g.a * 0.35, 1400); su.remove();
+  for (let i = 1; i <= 10; i++) { LF.appleK = i / 10; lfLayout(); await wait(60); }
+  sfx('ding'); LF.leaf.classList.remove('lfglow');
+  for (const t of T.lfDone) await say(t);
+  await say(T.lfWin);
+  await say(T.fireBye);
+  await eliVanish(LF.eli);
+}
+
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react'];
-const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene };
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react', 'leaf'];
+const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene, leaf: leafScene };
 let cur = -1;
 const DONE = new Set();
 try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
@@ -2596,6 +2705,7 @@ function relayout() {
   if (phase === 'atom') { const h = !!hopAnim; buildAtom(); if (h) hop(true); }
   if (phase === 'build' && BS) { layoutBuild(); syncBins(); renderAtom(); }
   if (phase === 'fire') layoutFire();
+  if (phase === 'leaf') lfLayout();
   if (phase === 'react') rxRelayout();
   if (phase === 'chem') chLayout();
   if (phase === 'sky') skyRender();
