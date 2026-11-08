@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции», #leaf — «Лист делает сахар», #elec — «Электричество»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции», #leaf — «Лист делает сахар», #elec — «Электричество», #photo — «Фотон выбивает Эли»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -242,6 +242,7 @@ let talk = null, sayText = '';
 function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
+  if (phase === 'photo' && PE) return PE.eli;
   if (phase === 'elec' && EL) return EL.eli;
   if (phase === 'leaf' && LF) return LF.eli;
   if (phase === 'react' && RX) return RX.eli;
@@ -2821,13 +2822,109 @@ async function elecScene() {
 }
 function elRelayout() { if (!EL) return; setB(EL.eli, L.eli * 0.8); put(EL.eli, W * 0.88, H * 0.82); if (EL.svg && EL.svg.isConnected) elDraw(); }
 
+
+/* ===================== ГЛАВА «ФОТОН ВЫБИВАЕТ ЭЛИ» ===================== */
+/* Фотоэффект. Пластинка из калия: работа выхода 2,29 эВ (таблица «Work function» в Википедии, по справочнику CRC).
+   Красный (1,89 эВ) и жёлтый (2,10) электрон не выбивают, бирюзовый (2,55) и фиолетовый (2,86) — выбивают; выбитый
+   электрон летит на вторую пластинку, по проводу бежит ток — лампа вспыхивает. Зелёный (2,33) у самого порога —
+   в главе его нет. Много красных фотонов подряд тоже не помогают: важна сила одного фотона, а не их число
+   (объяснил Эйнштейн в 1905 году; Нобелевская премия 1921 года — «особенно за открытие закона фотоэффекта»).
+   Что на самом деле: у натрия по справочнику CRC работа выхода 2,75 эВ (в задачниках часто 2,3) — поэтому не натрий;
+   в солнечных батареях (кремний) работает и красный свет — там другой порог (около 1,1 эВ). */
+const PH_WORK = 2.29;
+const PH_COLORS = ['red', 'yellow', 'cyan', 'violet'];
+let PE = null;
+
+function peGeo() {
+  return { px: W * 0.28, cx: W * 0.72, py: H * 0.42, ph: H * 0.2, pw: Math.max(14, W * 0.05), by: H * 0.62, a: Math.max(56, Math.min(W * 0.17, H * 0.09, 84)) };
+}
+function peLayout() {
+  if (!PE) return;
+  const g = peGeo();
+  const pl = (e, x, y, w, h) => Object.assign(e.style, { left: x - w / 2 + 'px', top: y - h / 2 + 'px', width: w + 'px', height: h + 'px' });
+  pl(PE.plate, g.px, g.py, g.pw, g.ph); pl(PE.coll, g.cx, g.py, g.pw, g.ph);
+  pl(PE.k, g.px, g.py - g.ph / 2 - g.a * 0.3, g.a * 0.45, g.a * 0.45);
+  pl(PE.bulb, W / 2, g.by, g.a, g.a); PE.bulb.innerHTML = BULB(PE.lit);
+  PE.svg.setAttribute('viewBox', `0 0 ${W} ${H}`); PE.svg.setAttribute('width', W); PE.svg.setAttribute('height', H);
+  PE.svg.innerHTML = `<path d="M${g.px} ${g.py + g.ph / 2} V${g.by} H${W / 2 - g.a * 0.3} M${W / 2 + g.a * 0.3} ${g.by} H${g.cx} V${g.py + g.ph / 2}" fill="none" stroke="#ffb02e" stroke-width="5"/>`;
+  PH_COLORS.forEach((c, i) => { const b = PE.btn[c]; pl(b, W * (0.2 + i * 0.2), H * 0.85, g.a * 0.85, g.a * 0.85); });
+  setB(PE.eli, L.eli * 0.8); put(PE.eli, W * 0.86, H * 0.2, PE.eli._k ?? 1);
+}
+async function peShoot(c) {                      // фотон цвета c летит в пластинку; → выбил ли электрон
+  const g = peGeo(), b = PE.btn[c], st = stage.getBoundingClientRect(), r = b.getBoundingClientRect(), s = g.a * 0.45;
+  const p = new Image(); p.src = `img/${PH[c].img}.webp`; p.className = 'peph'; Object.assign(p.style, { width: s + 'px', height: s + 'px' }); PE.root.appendChild(p);
+  const x0 = r.left - st.left + r.width / 2 - s / 2, y0 = r.top - st.top + r.height / 2 - s / 2;
+  await p.animate([{ transform: `translate(${x0}px,${y0}px)` }, { transform: `translate(${g.px - s / 2}px,${g.py - s / 2}px)` }], { duration: 650 * K, easing: 'ease-in', fill: 'forwards' }).finished.catch(() => {});
+  p.remove();
+  if (PH[c].E < PH_WORK) {                       // слабый: фотон проглочен, пластинка чуть нагрелась — электрон на месте
+    sfx('pop'); PE.plate.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.4)' }, { filter: 'brightness(1)' }], { duration: 400 * K });
+    return false;
+  }
+  sfx('rise');
+  const e = document.createElement('i'); e.className = 'eldot big'; PE.root.appendChild(e);
+  await e.animate([{ transform: `translate(${g.px + g.pw / 2 - 7}px,${g.py - 7}px)` }, { transform: `translate(${(g.px + g.cx) / 2}px,${g.py - 40}px)` }, { transform: `translate(${g.cx - g.pw / 2 - 7}px,${g.py - 7}px)` }],
+    { duration: 700 * K, easing: 'ease-out', fill: 'forwards' }).finished.catch(() => {});
+  e.remove(); PE.lit = true; peLayout(); sfx('ding');
+  setTimeout(() => { PE.lit = false; peLayout(); }, 700 * K);
+  return true;
+}
+function peTap(only = null) {                    // ребёнок нажимает на цвет; → какой
+  return new Promise(res => {
+    for (const c of PH_COLORS) {
+      const b = PE.btn[c], on = !only || only.includes(c);
+      b.classList.toggle('tappable', on);
+      b.onclick = on ? () => { for (const x of PH_COLORS) { PE.btn[x].onclick = null; PE.btn[x].classList.remove('tappable'); } res(c); } : null;   // пока фотон летит и Эли говорит — ничего не светится
+    }
+  });
+}
+async function photoScene() {
+  await flash();
+  clearStage();
+  phase = 'photo'; setLabel(T.peLabel);
+  PE = { btn: {}, lit: false };
+  PE.root = document.createElement('div'); PE.root.id = 'pe'; stage.appendChild(PE.root);
+  PE.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); PE.svg.classList.add('elsvg'); PE.root.appendChild(PE.svg);
+  const mk = (cls, html = '', button = false) => { const e = document.createElement(button ? 'button' : 'div'); if (button) e.type = 'button'; e.className = cls; e.innerHTML = html; PE.root.appendChild(e); return e; };
+  PE.plate = mk('peplate'); PE.coll = mk('peplate'); PE.k = mk('rxball'); PE.k.style.setProperty('--bc', FLAME.k); PE.k.style.position = 'absolute';
+  PE.bulb = mk('elo');
+  for (const c of PH_COLORS) { PE.btn[c] = mk('pebtn', `<img src="img/${PH[c].img}.webp" alt="">`, true); PE.btn[c].setAttribute('aria-label', PH[c].name); }
+  PE.eli = sprite('eli_hello', 'front'); PE.eli.addEventListener('click', () => talkTap());
+  peLayout();
+  await unflash();
+  for (const t of T.peIntro) await say(t);
+  await say(T.peTry, { next: false }); hideSay();
+  const tried = new Set();
+  while (tried.size < PH_COLORS.length) {        // попробовать каждый цвет
+    const c = await peTap();
+    tried.add(c); PE.btn[c].classList.add('tried');
+    await peShoot(c); await wait(300);
+  }
+  for (const c of PH_COLORS) PE.btn[c].classList.remove('tappable');
+  for (const t of T.peResult) await say(t);
+  await say(T.peMany, { next: false }); hideSay();
+  for (let i = 0; i < 6; i++) { await peTap(['red']); peShoot('red'); await wait(250); }
+  await wait(900);
+  for (const t of T.peManyNo) await say(t);
+  await say(T.peTask, { next: false }); hideSay();
+  for (;;) {
+    const c = await peTap();
+    if (await peShoot(c)) break;
+    await wait(400);
+  }
+  for (const c of PH_COLORS) PE.btn[c].classList.remove('tappable');
+  sfx('ding'); PE.eli.src = 'img/eli_jump.webp'; await bounce(PE.eli, 1.12, 0.9); PE.eli.src = 'img/eli_hello.webp';
+  await say(T.peWin);
+  await say(T.fireBye);
+  await eliVanish(PE.eli);
+}
+
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react', 'leaf', 'elec'];
-const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene, leaf: leafScene, elec: elecScene };
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react', 'leaf', 'elec', 'photo'];
+const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene, leaf: leafScene, elec: elecScene, photo: photoScene };
 let cur = -1;
 const DONE = new Set();
 try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
@@ -2863,6 +2960,7 @@ function relayout() {
   if (phase === 'atom') { const h = !!hopAnim; buildAtom(); if (h) hop(true); }
   if (phase === 'build' && BS) { layoutBuild(); syncBins(); renderAtom(); }
   if (phase === 'fire') layoutFire();
+  if (phase === 'photo') peLayout();
   if (phase === 'elec') elRelayout();
   if (phase === 'leaf') lfLayout();
   if (phase === 'react') rxRelayout();
