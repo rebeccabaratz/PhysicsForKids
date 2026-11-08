@@ -294,3 +294,21 @@ button.uvitem{cursor:pointer}
 .uvshield{position:absolute;z-index:15;pointer-events:none;border-radius:50%;border:3px solid rgba(255,230,140,.8);
   background:radial-gradient(circle,rgba(255,230,140,0) 55%,rgba(255,230,140,.35));box-shadow:0 0 24px rgba(255,210,90,.6)}
 @media (prefers-reduced-motion:reduce){.uvglow{transition:none}}
+
+/* глава «Небо» */
+#sky{position:absolute;inset:0;z-index:6}
+#skysvg{position:absolute;left:0;top:0;pointer-events:none;z-index:7}
+#skysvg .skyc{animation:skywave 4s ease-in-out infinite alternate;transform-origin:50% 100%}
+@keyframes skywave{from{transform:skewX(-4deg)}to{transform:skewX(4deg)}}
+.skhit{position:absolute;left:16px;right:16px;border:0;padding:0;background:none;cursor:pointer;z-index:9;border-radius:14px}
+.skhit.call{animation:rbcall 1.4s ease-in-out infinite}
+.skcard{position:absolute;border:3px solid rgba(255,255,255,.35);border-radius:14px;background:rgba(5,6,25,.6);padding:8px;cursor:pointer;z-index:9;
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:6px;box-sizing:border-box}
+.skcard.on{border-color:#ffc53d;box-shadow:0 0 18px rgba(255,197,61,.6)}
+.skcard svg{display:block;width:100%;height:24%;pointer-events:none}
+.skball{width:42%;aspect-ratio:1;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle at 34% 30%,#fff 0,var(--bc) 45%,color-mix(in srgb,var(--bc) 45%,#000) 100%)}
+.sksample{position:absolute;z-index:9;border:3px solid rgba(255,255,255,.55);border-radius:12px;background:rgba(5,6,25,.7);
+  display:flex;flex-direction:column;padding:6px;gap:2px;box-sizing:border-box}
+.sksample i{display:block;border-radius:4px}
+@media (prefers-reduced-motion:reduce){#skysvg .skyc,.skhit.call{animation:none}}

@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -242,6 +242,7 @@ let talk = null, sayText = '';
 function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
+  if (phase === 'sky' && SK) return SK.eli;
   if (phase === 'uv' && UV) return UV.eli;
   if (phase === 'color' && CL) return CL.eli;
   if (phase === 'fire' && F) return F.eli;
@@ -2080,13 +2081,156 @@ async function uvScene() {
 }
 function uvRelayout() { if (!UV) return; if (UV.inRoom) uvRoomRender(); if (UV.inBeach) uvBeachLayout(); }
 
+
+/* ===================== ГЛАВА «НЕБО» ===================== */
+/* 1) Северное сияние: частицы от Солнца ударяют атомы воздуха и подбрасывают их электроны (здесь толчок — удар
+      частицы, а не фотон); спрыгивая, электроны светятся. Кислород очень высоко (выше ~200 км) — красный 630,0 нм,
+      кислород ниже (~100–250 км) — зелёный 557,7 нм, азот у нижнего края — сине-фиолетовый 427,8 нм.
+      Ребёнок нажимает на высоты неба и раскрашивает сияние как на картинке.
+   2) Звёздный детектив: в радуге звезды тёмные линии — атомы звезды глотают свои цвета (глотание из «Эли и свет»).
+      Ребёнок выбирает штрихкоды атомов и находит, из чего звезда: Солнце — водород и натрий (линии Фраунгофера C, F и D),
+      горячая голубая звезда — водород и гелий, белая звезда — водород.
+      Факт: гелий нашли в 1868 году по жёлтой линии в свете Солнца (в протуберанцах, яркая линия 587,6 нм),
+      на Земле — только в 1895. Линии гелия здесь: 447, 502, 588, 668 нм. */
+const SKY_BANDS = [                              // сверху вниз: доли высоты экрана, цвет
+  { id: 'red', y0: 0.12, y1: 0.24, c: '#ff4a5a' }, { id: 'green', y0: 0.24, y1: 0.42, c: '#5dff8a' }, { id: 'violet', y0: 0.42, y1: 0.5, c: '#9b6bff' },
+];
+const SKY_TASKS = [['green'], ['red', 'green'], ['green', 'violet'], ['red', 'green', 'violet']];
+const STAR_ATOMS = { h: { lines: [656, 486, 434], c: '#f3f5ff' }, na: { lines: [589], c: '#b46bff' }, he: { lines: [447, 502, 588, 668], c: '#5fe3ff' } };
+const STAR_TASKS = [{ star: '#ffd86b', atoms: ['h', 'na'], after: 'skySunDone' }, { star: '#a9d4ff', atoms: ['h', 'he'], after: 'skyHe' }, { star: '#f6f4ff', atoms: ['h'] }];
+let SK = null;
+
+function skyRender() {
+  if (!SK) return;
+  const S = SK.state, parts = [];
+  SK.svg.setAttribute('viewBox', `0 0 ${W} ${H}`); SK.svg.setAttribute('width', W); SK.svg.setAttribute('height', H);
+  if (S.mode === 'aurora') {
+    for (let i = 0; i < 40; i++) parts.push(`<circle cx="${W * ((i * 0.618) % 1)}" cy="${H * 0.55 * ((i * 0.382 + i * i * 0.013) % 1)}" r="1.4" fill="#fff" opacity=".7"/>`);
+    for (const b of SKY_BANDS) if (S.on.includes(b.id)) {   // занавес сияния: волнистые полосы с мягким краем
+      const h0 = (b.y1 - b.y0) * H, y0 = H * b.y0 - h0 * 0.35, y1 = H * b.y1 + h0 * 0.35, xa = -W * 0.15, xb = W * 1.15, st = (xb - xa) / 8;   // полосы заходят друг на друга
+      parts.push(`<defs><linearGradient id="sg${b.id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${b.c}" stop-opacity="0"/><stop offset=".55" stop-color="${b.c}" stop-opacity=".7"/><stop offset="1" stop-color="${b.c}" stop-opacity="0"/></linearGradient></defs>`);
+      let d = `M ${xa} ${y1}`;
+      for (let x = xa; x < xb - 1; x += st) d += ` Q ${x + st / 2} ${y1 - (y1 - y0) * 0.25} ${x + st} ${y1}`;
+      d += ` L ${xb} ${y0} `;
+      for (let x = xb; x > xa + 1; x -= st) d += ` Q ${x - st / 2} ${y0 + (y1 - y0) * 0.2} ${x - st} ${y0}`;
+      parts.push(`<path class="skyc" d="${d} Z" fill="url(#sg${b.id})"/>`);
+    }
+    parts.push(`<path d="M0 ${H * 0.78} L${W * 0.18} ${H * 0.6} L${W * 0.32} ${H * 0.72} L${W * 0.5} ${H * 0.55} L${W * 0.68} ${H * 0.7} L${W * 0.84} ${H * 0.58} L${W} ${H * 0.74} L${W} ${H} L0 ${H} Z" fill="#1b2140"/>`
+      + `<path d="M${W * 0.44} ${H * 0.6} L${W * 0.5} ${H * 0.55} L${W * 0.56} ${H * 0.6} Z M${W * 0.8} ${H * 0.61} L${W * 0.84} ${H * 0.58} L${W * 0.88} ${H * 0.62} Z" fill="#e8ecff"/>`);
+  } else if (S.mode === 'star' && S.task) {
+    const sx0 = W * 0.08, sx1 = W * 0.92, sy = H * 0.38, sh = Math.max(34, H * 0.05), xl = l => sx0 + (l - 400) / 300 * (sx1 - sx0);
+    const r = Math.min(W * 0.12, H * 0.07);
+    parts.push(`<defs><radialGradient id="stg"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="${S.task.star}"/><stop offset="1" stop-color="${S.task.star}" stop-opacity="0"/></radialGradient></defs>`
+      + `<circle cx="${W / 2}" cy="${H * 0.2}" r="${r * 1.6}" fill="url(#stg)"/>`);
+    for (let l = 400; l < 700; l += 3) parts.push(`<rect x="${xl(l)}" y="${sy}" width="${xl(l + 3) - xl(l) + 0.6}" height="${sh}" fill="${wl2rgb(l)}"/>`);
+    for (const a of S.task.atoms) for (const l of STAR_ATOMS[a].lines) parts.push(`<rect x="${xl(l) - 2.5}" y="${sy}" width="5" height="${sh}" fill="#05060f"/>`);
+    parts.push(`<rect x="${sx0}" y="${sy}" width="${sx1 - sx0}" height="${sh}" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="2" rx="4"/>`);
+  }
+  SK.svg.innerHTML = parts.join('');
+  // карточки атомов: шарик и его яркие линии
+  const cw = Math.min(W * 0.27, 150), ch = Math.min(H * 0.15, 120);
+  for (const [i, k] of ['h', 'na', 'he'].entries()) {
+    const c = SK.cards[k]; c.hidden = S.mode !== 'star';
+    Object.assign(c.style, { left: W * (0.2 + i * 0.3) - cw / 2 + 'px', top: H * 0.66 - ch / 2 + 'px', width: cw + 'px', height: ch + 'px' });
+    c.classList.toggle('on', S.pick.includes(k));
+  }
+  setB(SK.eli, L.eli * 0.85); put(SK.eli, W * 0.86, H * 0.88, SK.eli._k ?? 1);
+  SK.sample.hidden = !(S.mode === 'aurora' && S.target);
+  if (S.mode === 'aurora' && S.target) {
+    const q = Math.min(W * 0.28, H * 0.16);
+    Object.assign(SK.sample.style, { left: W - 16 - q + 'px', top: H * 0.56 + 'px', width: q + 'px', height: q * 0.7 + 'px' });
+    SK.sample.innerHTML = SKY_BANDS.map(b => `<i style="background:${S.target.includes(b.id) ? b.c : 'transparent'};flex:${(b.y1 - b.y0) * 10}"></i>`).join('');
+  }
+  for (const b of SKY_BANDS) {
+    const el = SK.hits[b.id]; el.hidden = S.mode !== 'aurora';
+    Object.assign(el.style, { top: H * b.y0 + 'px', height: H * (b.y1 - b.y0) + 'px' });
+  }
+}
+function cardHtml(k) {                           // шарик атома и его штрихкод (яркие линии на тёмном)
+  const ls = STAR_ATOMS[k].lines.map(l => `<rect x="${4 + (l - 400) / 300 * 92 - 1.6}" y="0" width="3.2" height="22" fill="${wl2rgb(l)}"/>`).join('');
+  return `<span class="skball" style="--bc:${STAR_ATOMS[k].c}"></span><svg viewBox="0 0 100 22" preserveAspectRatio="none" aria-hidden="true"><rect width="100" height="22" rx="3" fill="#05060f"/>${ls}</svg>`;
+}
+function skyAuroraTask(t) {
+  const S = SK.state; Object.assign(S, { on: [], target: t }); skyRender();
+  return new Promise(res => {
+    for (const b of SKY_BANDS) {
+      const el = SK.hits[b.id]; el.classList.add('call');
+      el.onclick = () => {
+        S.on = S.on.includes(b.id) ? S.on.filter(x => x !== b.id) : [...S.on, b.id];
+        sfx(S.on.includes(b.id) ? 'sparkle' : 'pop'); skyRender();
+        if (S.on.length === t.length && t.every(x => S.on.includes(x))) {
+          for (const x in SK.hits) { SK.hits[x].onclick = null; SK.hits[x].classList.remove('call'); }
+          setTimeout(res, 1000);
+        }
+      };
+    }
+  });
+}
+function skyStarTask(t) {
+  const S = SK.state; Object.assign(S, { mode: 'star', task: t, pick: [] }); skyRender();
+  return new Promise(res => {
+    for (const k in SK.cards) {
+      const c = SK.cards[k]; c.classList.add('tappable');
+      c.onclick = () => {
+        S.pick = S.pick.includes(k) ? S.pick.filter(x => x !== k) : [...S.pick, k];
+        sfx('tap'); if (S.pick.includes(k)) playVoice(T.elementsSky[k] + '.', true);
+        skyRender();
+        if (S.pick.length === t.atoms.length && t.atoms.every(x => S.pick.includes(x))) {
+          for (const x in SK.cards) { SK.cards[x].onclick = null; SK.cards[x].classList.remove('tappable'); }
+          setTimeout(res, 900);
+        }
+      };
+    }
+  });
+}
+const skPose = n => { SK.eli.src = 'img/' + n + '.webp'; };
+async function skYay() { sfx('ding'); skPose('eli_jump'); await bounce(SK.eli, 1.12, 0.9); skPose('eli_hello'); }
+
+async function skyScene() {
+  await flash();
+  clearStage();
+  phase = 'sky'; setLabel(T.skyLabel);
+  SK = { state: { mode: 'aurora', on: ['green'], target: null, task: null, pick: [] } };
+  SK.root = document.createElement('div'); SK.root.id = 'sky'; stage.appendChild(SK.root);
+  SK.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); SK.svg.id = 'skysvg'; SK.root.appendChild(SK.svg);
+  SK.hits = {};
+  for (const b of SKY_BANDS) { const e = document.createElement('button'); e.type = 'button'; e.className = 'skhit'; e.setAttribute('aria-label', b.id); SK.root.appendChild(e); SK.hits[b.id] = e; }
+  SK.cards = {};
+  for (const k of ['h', 'na', 'he']) { const e = document.createElement('button'); e.type = 'button'; e.className = 'skcard'; e.innerHTML = cardHtml(k); e.setAttribute('aria-label', T.elementsSky[k]); SK.root.appendChild(e); SK.cards[k] = e; }
+  SK.sample = document.createElement('div'); SK.sample.className = 'sksample'; SK.root.appendChild(SK.sample);
+  SK.eli = sprite('eli_hello', 'front'); SK.eli.addEventListener('click', () => talkTap());
+  skyRender();
+  await unflash();
+
+  for (const t of T.skyIntro) await say(t);
+  for (const t of T.skyWhy) await say(t);
+  for (const [i, t] of T.skyAtoms.entries()) {   // показываем каждую высоту по очереди
+    SK.state.on = [['red', 'green', 'violet'][i]]; skyRender(); sfx('sparkle');
+    await say(t);
+  }
+  await say(T.skyPaint, { next: false }); hideSay();
+  for (const t of SKY_TASKS) { await skyAuroraTask(t); await skYay(); }
+  SK.state.target = null; skyRender();
+
+  await flash(); Object.assign(SK.state, { mode: 'star', task: STAR_TASKS[0], pick: [] }); skyRender(); await unflash();
+  for (const t of T.skyStars) await say(t);
+  await say(T.skyFind, { next: false }); hideSay();
+  for (const t of STAR_TASKS) {
+    await skyStarTask(t); await skYay();
+    if (t.after) await say(T[t.after]);
+  }
+  await say(T.skyWin);
+  await say(T.fireBye);
+  await eliVanish(SK.eli);
+}
+
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv'];
-const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene };
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky'];
+const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene };
 let cur = -1;
 const DONE = new Set();
 try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
@@ -2122,6 +2266,7 @@ function relayout() {
   if (phase === 'atom') { const h = !!hopAnim; buildAtom(); if (h) hop(true); }
   if (phase === 'build' && BS) { layoutBuild(); syncBins(); renderAtom(); }
   if (phase === 'fire') layoutFire();
+  if (phase === 'sky') skyRender();
   if (phase === 'uv') uvRelayout();
   if (phase === 'color') colRender();
   if (phase === 'rainbow') rbRender();

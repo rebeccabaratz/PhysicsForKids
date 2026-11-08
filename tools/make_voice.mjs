@@ -53,6 +53,8 @@ const SAY_AS = {
     [/פוטו/g, 'פוטוֹ'],                            // «фотун» → «фотон»: холам на последнем слоге (вариант foton3)
     [/^מימן\.$/, 'мейма́н.'], [/^בור\.$/, 'בּוֹר.'], [/^פחמן\.$/, 'пахмАн.'], [/^ליתיום\.$/, 'ли́тиум.'],   // названия элементов на карточках:
     [/^חנקן\.$/, 'ханка́н.'], [/^חמצן\.$/, 'хамца́н.'], [/^הליום\.$/, 'хе́лиум.'],   // кириллица — выбрано на слух
+    [/(?<![א-ת])מימן(?![א-ת])/g, 'мейма́н'], [/(?<![א-ת])חמצן(?![א-ת])/g, 'хамца́н'], [/(?<![א-ת])חנקן(?![א-ת])/g, 'ханка́н'],
+    [/(?<![א-ת])הליום(?![א-ת])/g, 'хе́лиум'],   // те же названия внутри фраз — как выбрано на слух для карточек
     [/אטו(?=[םמ])/g, 'אטוֹ'],                       // «атум» → «атом»: אטום, האטומים, באטום
     [/הכול/g, 'הכוֹל'],
     [/־חקיין/g, ' חקיין'],                         // «פוטון־חקיין» — голос сливал в одно слово
@@ -89,6 +91,7 @@ function phrases(T) {                               // все фразы, кот
     T.rbLamps, ...Object.values(T.rbLamp).flat(), T.rbTest, T.rbWrong, T.rbWin);   // «Радуга»   // «Салют»: название атома, когда его берут
   add('eli', ...T.colIntro, T.colChoose, ...Object.values(T.colMake), ...Object.values(T.colWhy), ...T.colHeat, T.colHeatEnd, ...T.colScreen, T.colScreenEnd, T.colWin);   // «Цвет»
   add('eli', ...T.uvIntro, ...T.uvLadder, T.uvRoom, T.uvFind, T.uvOff, ...T.uvAfter, ...T.uvBeach, T.uvBurn, T.uvCatch, T.uvCream, T.uvSafe, T.uvWin);   // «Невидимый свет»
+  add('eli', ...T.skyIntro, ...T.skyWhy, ...T.skyAtoms, T.skyPaint, ...T.skyStars, T.skyFind, T.skySunDone, T.skyHe, T.skyWin, ...Object.values(T.elementsSky).map(n => n + '.'));   // «Небо»
   for (const c of ['red', 'cyan', 'violet']) add('eli', T.s4ok(T.photons[c][1]));   // «летят два красных фотона»
   for (const m of [3, 4, 5]) for (const t of [3, 4, 5]) if (m !== t) add('eli', T.wrongStep(m, t));
   return out;
