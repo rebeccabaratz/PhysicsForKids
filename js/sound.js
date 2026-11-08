@@ -6,7 +6,7 @@
 
 const VOICE_VOLUME = 1.0;
 const SFX_VOLUME = 0.55;
-const MUTE = /[?&]mute\b/.test(location.search);   // адрес …/?mute#he-fire — проверка без звука (например, ночью)
+const MUTE = typeof location !== 'undefined' && /[?&]mute\b/.test(location.search);   // адрес …/?mute#he-fire — проверка без звука (например, ночью)
 
 function voiceKey(text) {                         // FNV-1a, 32 бита; тот же ключ считает tools/make_voice.mjs
   let h = 0x811c9dc5;

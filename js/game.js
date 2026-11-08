@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -242,6 +242,7 @@ let talk = null, sayText = '';
 function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
+  if (phase === 'color' && CL) return CL.eli;
   if (phase === 'fire' && F) return F.eli;
   if (phase === 'rainbow' && RB) return RB.eli;
   return null;
@@ -1669,13 +1670,238 @@ async function rainbowScene() {
   await eliVanish(RB.eli);
 }
 
+
+/* ===================== ГЛАВА «ЦВЕТ» ===================== */
+/* Эли работает в кожуре яблока: глотает фотоны.
+   1) Свет солнца — поток фотонов трёх цветов (красный, зелёный, синий). Ребёнок нажимает на шарики-цвета внизу:
+      нажатый цвет предмет «ест» (фотон исчезает в предмете), остальные отскакивают в глаз — предмет окрашивается
+      в смесь отражённых. Задания: красное яблоко (ест зелёный и синий), зелёный лист (ест красный и синий),
+      жёлтый банан (ест только синий), чёрная и белая футболки.
+   2) Две футболки на солнце: съеденные фотоны становятся теплом — у чёрной градусник поднимается выше.
+      Отличие от «Эли и свет»: здесь проглоченный фотон обратно не выплёвывается, энергия уходит в тепло.
+   3) Экран телефона вблизи: красная, зелёная и синяя точки; ребёнок включает их и собирает цвет как на картинке
+      (жёлтый = красный + зелёный, белый = все три, пурпурный = красный + синий, голубой = зелёный + синий).
+   Что на самом деле: в белом свете все цвета радуги, а не три; три цвета — упрощение, честное для экрана
+   (и для глаза: в нём три вида колбочек). Пигменты глотают полосы спектра: кожура красного яблока — сине-зелёный,
+   хлорофилл — красный и синий, банан — синий. */
+const RGB = { r: [255, 40, 40], g: [40, 220, 60], b: [50, 90, 255] };
+const RGB_CSS = { r: '#ff3b3b', g: '#3bdc4b', b: '#3d6bff' };
+const mixRGB = on => { const c = [22, 22, 30]; for (const k of on) RGB[k].forEach((v, i) => { c[i] = Math.min(255, c[i] + v); }); return `rgb(${c.join(',')})`; };
+const COL_SHAPES = {
+  apple: 'M50 30 C35 18 12 26 14 52 C16 78 36 92 50 86 C64 92 84 78 86 52 C88 26 65 18 50 30 Z',
+  leaf: 'M14 86 C14 42 44 12 88 12 C88 56 58 86 14 86 Z',
+  banana: 'M16 26 C20 70 58 90 90 70 C86 64 80 64 76 66 C54 74 34 60 30 26 C28 20 18 20 16 26 Z',
+  shirt: 'M30 15 L42 10 C44 18 56 18 58 10 L70 15 L90 32 L80 44 L72 38 L72 90 L28 90 L28 38 L20 44 L10 32 Z',
+};
+const COL_TASKS = [                              // предмет, какие цвета он должен есть
+  { id: 'apple', shape: 'apple', eat: ['g', 'b'] },
+  { id: 'leaf', shape: 'leaf', eat: ['r', 'b'] },
+  { id: 'banana', shape: 'banana', eat: ['b'] },
+  { id: 'black', shape: 'shirt', eat: ['r', 'g', 'b'] },
+  { id: 'white', shape: 'shirt', eat: [] },
+];
+const SCREEN_TASKS = [['r', 'g'], ['r', 'g', 'b'], ['r', 'b'], ['g', 'b']];
+const EYE = '<svg viewBox="0 0 100 60" aria-hidden="true"><path d="M5 30 Q50 -8 95 30 Q50 68 5 30 Z" fill="#f3f5ff"/><circle class="iris" cx="50" cy="30" r="17" fill="#888"/><circle cx="50" cy="30" r="7" fill="#111"/><circle cx="44" cy="24" r="4" fill="#fff"/></svg>';
+let CL = null;
+
+function colGeo() {
+  const g = { a: Math.max(56, Math.min(W * 0.17, H * 0.09, 84)), os: Math.min(W * 0.44, H * 0.25) };
+  g.sunX = W * 0.14; g.sunY = H * 0.2; g.ox = W * 0.44; g.oy = H * 0.44; g.eyeX = W * 0.86; g.eyeY = H * 0.44; g.trayY = H * 0.86;
+  return g;
+}
+function objSvg(shape, fill) {
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><defs><radialGradient id="cls" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".6" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>`
+    + (shape === 'apple' ? '<rect x="47" y="12" width="6" height="18" rx="3" fill="#7a4a24"/>' : '')
+    + `<path d="${COL_SHAPES[shape]}" fill="${fill}" stroke="rgba(200,206,240,.55)" stroke-width="2"/><path d="${COL_SHAPES[shape]}" fill="url(#cls)"/>`
+    + (shape === 'leaf' ? '<path d="M18 82 Q50 50 84 16" stroke="rgba(0,0,0,.25)" stroke-width="2.5" fill="none"/>' : '') + '</svg>';
+}
+function colRender() {
+  if (!CL) return;
+  const g = colGeo(), S = CL.state;
+  if (CL.cvW !== W || CL.cvH !== H) {            // размер холста — только когда меняется экран
+    const dpr = Math.min(2, devicePixelRatio || 1); CL.cvW = W; CL.cvH = H;
+    CL.cv.width = W * dpr; CL.cv.height = H * dpr; Object.assign(CL.cv.style, { width: W + 'px', height: H + 'px' });
+    CL.ctx = CL.cv.getContext('2d'); CL.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  const pl = (el, x, y, w, h = w) => Object.assign(el.style, { left: x - w / 2 + 'px', top: y - h / 2 + 'px', width: w + 'px', height: h + 'px' });
+  CL.sun.hidden = S.mode === 'screen'; pl(CL.sun, g.sunX, g.sunY, g.a * 1.3);
+  CL.eye.hidden = S.mode !== 'obj'; pl(CL.eye, g.eyeX, g.eyeY, g.a * 1.2, g.a * 0.72);
+  const refl = ['r', 'g', 'b'].filter(k => !S.eat.includes(k));
+  CL.eye.querySelector('.iris').setAttribute('fill', S.mode === 'obj' ? mixRGB(refl) : '#888');
+  CL.eye.style.filter = S.mode === 'obj' && refl.length ? `drop-shadow(0 0 12px ${mixRGB(refl)})` : '';
+  if (S.mode === 'obj') {
+    CL.obj.hidden = false; pl(CL.obj, g.ox, g.oy, g.os);
+    CL.obj.innerHTML = objSvg(S.shape, mixRGB(refl));
+  } else CL.obj.hidden = true;
+  ['r', 'g', 'b'].forEach((k, i) => {
+    const b = CL.balls[k]; b.hidden = S.mode !== 'obj'; pl(b, W * (0.22 + i * 0.22), g.trayY, g.a * 0.85);
+    b.classList.toggle('eaten', S.eat.includes(k));
+  });
+  // футболки с градусниками
+  CL.shirts.hidden = S.mode !== 'heat';
+  if (S.mode === 'heat') {
+    const sw = Math.min(W * 0.36, H * 0.2);
+    CL.shirts.innerHTML = ['black', 'white'].map((c, i) => {
+      const x = W * (0.3 + i * 0.4), t = S.temp[i];
+      return `<div class="clshirt" style="left:${x - sw / 2}px;top:${H * 0.42 - sw / 2}px;width:${sw}px;height:${sw}px">${objSvg('shirt', c === 'black' ? mixRGB([]) : mixRGB(['r', 'g', 'b']))}</div>`
+        + `<div class="clthermo" style="left:${x - 9}px;top:${H * 0.58}px;height:${H * 0.2}px"><i style="height:${15 + t * 85}%"></i></div>`;
+    }).join('');
+  }
+  // экран телефона
+  CL.screen.hidden = S.mode !== 'screen';
+  if (S.mode === 'screen') {
+    const ps = Math.min(W * 0.6, H * 0.32);
+    pl(CL.screen, W / 2, H * 0.4, ps);
+    ['r', 'g', 'b'].forEach(k => CL.dots[k].classList.toggle('on', S.lit.includes(k)));
+    pl(CL.swatch, W / 2, H * 0.72, g.a * 1.1); CL.swatch.style.background = mixRGB(S.lit);
+  }
+  CL.swatch.hidden = S.mode !== 'screen';
+  // картинка-образец
+  CL.sample.hidden = !S.target;
+  if (S.target) {
+    const q = Math.min(W * 0.28, H * 0.16);
+    pl(CL.sample, W - 16 - q / 2, H * 0.13 + q / 2, q);
+    CL.sample.innerHTML = S.mode === 'screen'
+      ? `<i style="background:${mixRGB(S.target)}"></i>` : objSvg(S.shape, S.target);
+  }
+  setB(CL.eli, L.eli * 0.95); put(CL.eli, W * 0.88, H * 0.86, CL.eli._k ?? 1);
+}
+/* поток фотонов от солнца к предмету: съеденные исчезают, остальные летят в глаз */
+function colStream(on) {
+  CL.streaming = on;
+  if (!on || CL.raf) return;
+  let last = performance.now(), acc = 0;
+  const frame = now => {
+    if (!CL || !CL.cv.isConnected) return;
+    const dt = Math.min(50, now - last) / K; last = now; acc += dt;
+    const g = colGeo(), c = CL.ctx, S = CL.state;
+    if (CL.streaming && acc > 170) { acc = 0;
+      const k = ['r', 'g', 'b'][CL.n++ % 3], hx = S.mode === 'heat' ? W * (CL.n % 2 ? 0.3 : 0.7) : g.ox, hy = S.mode === 'heat' ? H * 0.42 : g.oy;
+      CL.ps.push({ k, x: g.sunX, y: g.sunY, tx: hx + (Math.random() - 0.5) * g.os * 0.3, ty: hy + (Math.random() - 0.5) * g.os * 0.3, st: 'in' });
+    }
+    c.clearRect(0, 0, W, H);
+    const v = Math.min(W, H) * 0.0006 * dt;          // скорость фотона, пикселей за кадр
+    for (const p of CL.ps) {
+      const dx = p.tx - p.x, dy = p.ty - p.y, d = Math.hypot(dx, dy);
+      if (d < v + 1) {
+        if (p.st === 'in') {
+          if (S.mode === 'obj' && S.eat.includes(p.k) || S.mode === 'heat' && p.tx < W / 2) p.st = 'gone';   // чёрная футболка (слева) ест всё
+          else { p.st = 'out'; p.tx = S.mode === 'obj' ? g.eyeX : (p.tx < W / 2 ? W * 0.1 : W * 0.95); p.ty = S.mode === 'obj' ? g.eyeY : -20; }
+        } else p.st = 'gone';
+        continue;
+      }
+      p.x += dx / d * v; p.y += dy / d * v;
+      c.globalAlpha = 1; c.fillStyle = RGB_CSS[p.k]; c.shadowColor = RGB_CSS[p.k]; c.shadowBlur = 10;
+      c.beginPath(); c.arc(p.x, p.y, Math.max(5, g.a * 0.12), 0, Math.PI * 2); c.fill();
+    }
+    c.shadowBlur = 0;
+    CL.ps = CL.ps.filter(p => p.st !== 'gone');
+    CL.raf = (CL.streaming || CL.ps.length) ? requestAnimationFrame(frame) : 0;
+  };
+  CL.raf = requestAnimationFrame(frame);
+}
+function colTask(t) {                            // ребёнок выбирает, что предмет ест; совпало — дальше
+  const S = CL.state;
+  // белая футболка — сразу после чёрной: начинаем с «ест всё», ребёнок убирает
+  Object.assign(S, { mode: 'obj', shape: t.shape, eat: t.id === 'white' ? ['r', 'g', 'b'] : [], target: mixRGB(['r', 'g', 'b'].filter(k => !t.eat.includes(k))) });
+  colRender();
+  return new Promise(res => {
+    const check = () => {
+      if (S.eat.length === t.eat.length && t.eat.every(k => S.eat.includes(k))) {
+        for (const k in CL.balls) { CL.balls[k].onclick = null; CL.balls[k].classList.remove('tappable'); }
+        setTimeout(res, 900);
+      }
+    };
+    for (const k in CL.balls) {
+      const b = CL.balls[k]; b.classList.add('tappable');
+      b.onclick = () => {
+        S.eat = S.eat.includes(k) ? S.eat.filter(x => x !== k) : [...S.eat, k];
+        sfx(S.eat.includes(k) ? 'chomp' : 'pop'); colRender(); check();
+      };
+    }
+    check();
+  });
+}
+function screenTask(t) {                         // ребёнок включает точки экрана; совпало — дальше
+  const S = CL.state;
+  Object.assign(S, { mode: 'screen', lit: [], target: t }); colRender();
+  return new Promise(res => {
+    for (const k in CL.dots) {
+      const d = CL.dots[k]; d.classList.add('tappable');
+      d.onclick = () => {
+        S.lit = S.lit.includes(k) ? S.lit.filter(x => x !== k) : [...S.lit, k];
+        sfx('tap'); colRender();
+        if (S.lit.length === t.length && t.every(x => S.lit.includes(x))) {
+          for (const x in CL.dots) { CL.dots[x].onclick = null; CL.dots[x].classList.remove('tappable'); }
+          setTimeout(res, 900);
+        }
+      };
+    }
+  });
+}
+const clPose = n => { CL.eli.src = 'img/' + n + '.webp'; };
+async function clYay() { sfx('ding'); clPose('eli_jump'); await bounce(CL.eli, 1.12, 0.9); clPose('eli_hello'); }
+
+async function colorScene() {
+  await flash();
+  clearStage();
+  phase = 'color'; setLabel(T.colLabel);
+  CL = { state: { mode: 'obj', shape: 'apple', eat: [], target: null, temp: [0, 0], lit: [] }, ps: [], n: 0, raf: 0, streaming: false };
+  const root = CL.root = document.createElement('div'); root.id = 'cl'; stage.appendChild(root);
+  const mk = (tag, cls, html = '') => { const e = document.createElement(tag); if (tag === 'button') e.type = 'button'; e.className = cls; e.innerHTML = html; root.appendChild(e); return e; };
+  CL.cv = mk('canvas', 'clcv');
+  CL.sun = mk('button', 'clobj', SUN); CL.obj = mk('div', 'clobj clthing'); CL.eye = mk('div', 'clobj', EYE);
+  CL.balls = {}; for (const k of ['r', 'g', 'b']) { CL.balls[k] = mk('button', 'clball'); CL.balls[k].style.setProperty('--bc', RGB_CSS[k]); CL.balls[k].setAttribute('aria-label', k); }
+  CL.shirts = mk('div', 'clshirts');
+  CL.screen = mk('div', 'clscreen'); CL.dots = {};
+  for (const k of ['r', 'g', 'b']) { const d = document.createElement('button'); d.type = 'button'; d.className = 'cldot'; d.style.setProperty('--bc', RGB_CSS[k]); d.setAttribute('aria-label', k); CL.screen.appendChild(d); CL.dots[k] = d; }
+  CL.swatch = mk('div', 'clswatch'); CL.sample = mk('div', 'clsample');
+  CL.eli = sprite('eli_hello', 'front'); CL.eli.addEventListener('click', () => talkTap());
+  colRender();
+  await unflash();
+
+  // 1) почему предметы цветные
+  colStream(true);
+  for (const t of T.colIntro) await say(t);
+  for (let i = 0; i < COL_TASKS.length; i++) {
+    const t = COL_TASKS[i];
+    Object.assign(CL.state, { shape: t.shape, eat: t.id === 'white' ? ['r', 'g', 'b'] : [], target: null }); colRender();
+    await say(T.colMake[t.id], { next: false });
+    if (i === 0) await say(T.colChoose, { next: false });
+    hideSay();
+    await colTask(t);
+    await clYay();
+    await say(T.colWhy[t.id]);
+  }
+  // 2) футболки на солнце
+  colStream(false);
+  await flash(); Object.assign(CL.state, { mode: 'heat', target: null, eat: [], temp: [0, 0] }); colRender(); await unflash();
+  for (const t of T.colHeat) await say(t, { next: false });
+  hideSay();
+  await tapObj(CL.sun);
+  colStream(true);
+  for (let i = 1; i <= 40; i++) { CL.state.temp = [i / 40 * 0.85, i / 40 * 0.3]; colRender(); await wait(120); }   // чёрная греется сильнее
+  colStream(false);
+  await say(T.colHeatEnd);
+  // 3) экран телефона
+  await flash(); Object.assign(CL.state, { mode: 'screen', target: null }); colRender(); await unflash();
+  for (const t of T.colScreen) await say(t, { next: false });
+  hideSay();
+  for (const t of SCREEN_TASKS) { await screenTask(t); await clYay(); }
+  Object.assign(CL.state, { target: null }); colRender();
+  await say(T.colScreenEnd);
+  await say(T.colWin);
+  await say(T.fireBye);
+  await eliVanish(CL.eli);
+}
+
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow'];
-const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene };
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color'];
+const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene };
 let cur = -1;
 const DONE = new Set();
 try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
@@ -1711,6 +1937,7 @@ function relayout() {
   if (phase === 'atom') { const h = !!hopAnim; buildAtom(); if (h) hop(true); }
   if (phase === 'build' && BS) { layoutBuild(); syncBins(); renderAtom(); }
   if (phase === 'fire') layoutFire();
+  if (phase === 'color') colRender();
   if (phase === 'rainbow') rbRender();
 }
 addEventListener('resize', () => { clearTimeout(relayout._t); relayout._t = setTimeout(relayout, 150); });
