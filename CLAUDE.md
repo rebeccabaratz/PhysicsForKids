@@ -54,7 +54,7 @@
 - `index.html` — разметка; `css/style.css`; `js/texts.js` — **все** фразы (`T_RU`, `T_HE`, одинаковые ключи);
   `js/sound.js` — голос и синтезированные звуки; `js/game.js` — логика, в начале — объект `P` с параметрами
   и заголовок-описание (добавил параметр — допиши в заголовок).
-- Сцены: `SCENES = ['apple','build','eli1'…'eli5','fire','rainbow','color','uv','sky','chem','react','leaf','elec','photo']`, адрес `#he-eli3`, `#he-fire`.
+- Сцены: `SCENES = ['apple','build','eli1'…'eli5','fire','rainbow','color','uv','sky','chem','react','leaf','elec','photo','magnet']`, адрес `#he-eli3`, `#he-fire`.
   Новая глава: функция сцены (начинается с `clearStage()`, кончается `eliVanish(...)`), добавить в `SCENES` и `SCENE_FN`,
   её фразы — в `phrases()` в `tools/make_voice.mjs`. Проверять без звука: `/?mute#he-<сцена>`.
 - Хранение в браузере (`localStorage`, всегда в try/catch): `eliLang`, `eliDone`, `eliNext`, `eliBadge`, `eliBarcode`.

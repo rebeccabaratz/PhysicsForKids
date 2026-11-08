@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции», #leaf — «Лист делает сахар», #elec — «Электричество», #photo — «Фотон выбивает Эли»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции», #leaf — «Лист делает сахар», #elec — «Электричество», #photo — «Фотон выбивает Эли», #magnet — «Магниты»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -242,6 +242,7 @@ let talk = null, sayText = '';
 function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
+  if (phase === 'magnet' && MG) return MG.eli;
   if (phase === 'photo' && PE) return PE.eli;
   if (phase === 'elec' && EL) return EL.eli;
   if (phase === 'leaf' && LF) return LF.eli;
@@ -2918,13 +2919,122 @@ async function photoScene() {
   await eliVanish(PE.eli);
 }
 
+
+/* ===================== ГЛАВА «МАГНИТЫ» ===================== */
+/* 1) Каждый электрон — крошечный магнит (из-за спина). В железе есть области, где магнитики смотрят в одну сторону;
+      стрелка в игре — такая область. Ребёнок поворачивает все стрелки в одну сторону — железо стало магнитом,
+      скрепка прыгает к нему. (Нагрев выше 770 °C снова перемешивает порядок — в игре не показано.)
+   2) Притягиваются железо (гвоздь, скрепка); алюминий и дерево — нет (с обычным магнитом).
+   3) Компас: Земля — большой магнит, красная стрелка показывает на север. Ребёнок нажимает на дверь, на которую
+      показывает стрелка. Магнит Земли направляет частицы от Солнца к полюсам — там северное сияние (глава «Небо»). */
+const ARROW = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M14 50 H70 M56 32 L78 50 L56 68" stroke="#ff4a4a" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>';
+const CLIP = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M36 80 V30 a14 14 0 0 1 28 0 V72 a8 8 0 0 1 -16 0 V36" stroke="#c9cfee" stroke-width="6" fill="none" stroke-linecap="round"/></svg>';
+const CAN = '<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="28" y="16" width="44" height="72" rx="8" fill="#c9cfee"/><rect x="28" y="40" width="44" height="22" fill="#3d6bff"/><ellipse cx="50" cy="16" rx="22" ry="5" fill="#e8ecff"/></svg>';
+const WSPOON = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M30 86 L60 40" stroke="#c98d4e" stroke-width="9" stroke-linecap="round"/><ellipse cx="68" cy="28" rx="16" ry="20" fill="#c98d4e" transform="rotate(35 68 28)"/></svg>';
+const MAGNET = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M20 20 V56 a30 30 0 0 0 60 0 V20 H62 V56 a12 12 0 0 1 -24 0 V20 Z" fill="#ff4a4a"/><rect x="20" y="12" width="18" height="16" fill="#c9cfee"/><rect x="62" y="12" width="18" height="16" fill="#c9cfee"/></svg>';
+const COMPASS = '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="#f3f5ff" stroke="#9aa0c8" stroke-width="5"/><g class="needle"><path d="M50 12 L60 50 H40 Z" fill="#ff4a4a"/><path d="M50 88 L60 50 H40 Z" fill="#4a4f66"/></g><circle cx="50" cy="50" r="5" fill="#1b1e4a"/></svg>';
+const DOOR = '<svg viewBox="0 0 60 100" aria-hidden="true"><rect x="4" y="4" width="52" height="92" rx="6" fill="#7a4a24" stroke="#c98d4e" stroke-width="4"/><circle cx="44" cy="54" r="4" fill="#ffc53d"/></svg>';
+let MG = null;
+
+function mgEl(cls, html = '', button = false) {
+  const e = document.createElement(button ? 'button' : 'div'); if (button) e.type = 'button';
+  e.className = 'mgo ' + cls; e.innerHTML = html; MG.root.appendChild(e); return e;
+}
+const mgPl = (e, x, y, w, h = w) => Object.assign(e.style, { left: x - w / 2 + 'px', top: y - h / 2 + 'px', width: w + 'px', height: h + 'px' });
+const mgA = () => Math.max(56, Math.min(W * 0.17, H * 0.09, 84));
+
+async function mgIron() {
+  const cols = 4, rows = 3, cw = Math.min(W * 0.18, 72), ix = W / 2, iy = H * 0.42;
+  const iron = mgEl('mgiron'); mgPl(iron, ix, iy, cols * cw + 16, rows * cw + 16);
+  const arrows = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const b = mgEl('mgarrow', ARROW, true); mgPl(b, ix + (c - (cols - 1) / 2) * cw, iy + (r - (rows - 1) / 2) * cw, cw * 0.9);
+    const ang = [90, 180, 270, 45, 135, 225, 315][(r * cols + c) * 3 % 7];
+    b.style.transform = `rotate(${ang}deg)`; arrows.push(b);
+  }
+  const clip = mgEl('', CLIP); const a = mgA(); mgPl(clip, ix + cols * cw / 2 + a * 0.9, H * 0.72, a * 0.7);
+  await say(T.mgAlign, { next: false }); hideSay();
+  await new Promise(res => {
+    let left = arrows.length;
+    arrows.forEach(b => { b.classList.add('tappable'); b.onclick = () => {
+      b.onclick = null; b.classList.remove('tappable'); b.style.transform = 'rotate(0deg)'; sfx('tick');
+      if (!--left) setTimeout(res, 600);
+    }; });
+  });
+  iron.classList.add('on'); sfx('sparkle');
+  const r0 = clip.getBoundingClientRect(), ir = iron.getBoundingClientRect();
+  await clip.animate([{ transform: 'translate(0,0)' }, { transform: `translate(${ir.right - r0.right + a * 0.2}px,${ir.top - r0.top + ir.height / 2 - r0.height / 2}px)` }],
+    { duration: 500 * K, easing: 'cubic-bezier(.5,0,1,1)', fill: 'forwards' }).finished.catch(() => {});
+  sfx('ding');
+  await say(T.mgAligned);
+  MG.root.innerHTML = '';
+}
+async function mgTest() {
+  const a = mgA(), mx = W / 2, my = H * 0.42;
+  const mag = mgEl('', MAGNET); mgPl(mag, mx, my, a * 1.4);
+  const items = [{ svg: NAIL, iron: true, x: 0.18, y: 0.28 }, { svg: CLIP, iron: true, x: 0.82, y: 0.28 }, { svg: CAN, iron: false, x: 0.18, y: 0.66 }, { svg: WSPOON, iron: false, x: 0.82, y: 0.66 }];
+  const els = items.map(it => { const e = mgEl(it.svg === NAIL ? 'rxnail' : '', it.svg, true); mgPl(e, W * it.x, H * it.y, a * 0.9); return e; });
+  await say(T.mgTest, { next: false }); hideSay();
+  await new Promise(res => {
+    let left = items.length;
+    items.forEach((it, i) => { const e = els[i]; e.classList.add('tappable'); e.onclick = async () => {
+      e.onclick = null; e.classList.remove('tappable');
+      if (it.iron) {                              // железо — к магниту
+        sfx('boing');
+        await e.animate([{ transform: 'translate(0,0)' }, { transform: `translate(${(mx - W * it.x) * 0.62}px,${(my - H * it.y) * 0.62}px)` }], { duration: 450 * K, easing: 'cubic-bezier(.5,0,1,1)', fill: 'forwards' }).finished.catch(() => {});
+      } else { sfx('oops'); await e.animate([0, -8, 8, -6, 6, 0].map(x => ({ transform: `translateX(${x}px)` })), { duration: 500 * K }).finished.catch(() => {}); }
+      if (!--left) setTimeout(res, 500);
+    }; });
+  });
+  await say(T.mgTestEnd);
+  MG.root.innerHTML = '';
+}
+async function mgCompass() {
+  const a = mgA(), cx = W / 2, cy = H * 0.45, R0 = Math.min(W * 0.36, H * 0.24);
+  const comp = mgEl('', COMPASS); mgPl(comp, cx, cy, a * 1.6);
+  const needle = comp.querySelector('.needle'); needle.style.transformOrigin = '50px 50px'; needle.style.transition = `transform ${0.8 * K}s ease-in-out`;
+  const dirs = [[0, -1], [1, 0], [0, 1], [-1, 0]];   // двери: вверх, вправо, вниз, влево
+  const doors = dirs.map(([dx, dy]) => { const d = mgEl('', DOOR, true); mgPl(d, cx + dx * R0, cy + dy * R0, a * 0.55, a * 0.9); return d; });
+  for (const t of T.mgCompass) await say(t);
+  await say(T.mgDoor, { next: false }); hideSay();
+  for (const k of [1, 3, 2]) {                   // север «поворачивается» — стрелка показывает на другую дверь
+    needle.style.transform = `rotate(${k * 90}deg)`; await wait(900);
+    for (;;) {
+      const i = await new Promise(r => doors.forEach((d, j) => { d.classList.add('tappable'); d.onclick = () => { doors.forEach(x => { x.onclick = null; x.classList.remove('tappable'); }); r(j); }; }));
+      if (i === k) { sfx('ding'); await bounce(doors[i], 1.15, 0.9); break; }
+      sfx('oops'); await doors[i].animate([0, -6, 6, 0].map(x => ({ transform: `translateX(${x}px)` })), { duration: 400 * K }).finished.catch(() => {});
+    }
+  }
+  await say(T.mgAurora);
+}
+async function magnetScene() {
+  await flash();
+  clearStage();
+  phase = 'magnet'; setLabel(T.mgLabel);
+  MG = {};
+  MG.root = document.createElement('div'); MG.root.id = 'mg'; stage.appendChild(MG.root);
+  MG.eli = sprite('eli_hello', 'front'); MG.eli.addEventListener('click', () => talkTap());
+  setB(MG.eli, L.eli * 0.8); put(MG.eli, W * 0.88, H * 0.86);
+  await unflash();
+  for (const t of T.mgIntro) await say(t);
+  await mgIron();
+  await flash(); await unflash();
+  await mgTest();
+  await flash(); await unflash();
+  await mgCompass();
+  await say(T.mgWin);
+  await say(T.fireBye);
+  await eliVanish(MG.eli);
+}
+function mgRelayout() { if (MG) { setB(MG.eli, L.eli * 0.8); put(MG.eli, W * 0.88, H * 0.86); } }
+
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react', 'leaf', 'elec', 'photo'];
-const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene, leaf: leafScene, elec: elecScene, photo: photoScene };
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react', 'leaf', 'elec', 'photo', 'magnet'];
+const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene, leaf: leafScene, elec: elecScene, photo: photoScene, magnet: magnetScene };
 let cur = -1;
 const DONE = new Set();
 try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
@@ -2960,6 +3070,7 @@ function relayout() {
   if (phase === 'atom') { const h = !!hopAnim; buildAtom(); if (h) hop(true); }
   if (phase === 'build' && BS) { layoutBuild(); syncBins(); renderAtom(); }
   if (phase === 'fire') layoutFire();
+  if (phase === 'magnet') mgRelayout();
   if (phase === 'photo') peLayout();
   if (phase === 'elec') elRelayout();
   if (phase === 'leaf') lfLayout();
