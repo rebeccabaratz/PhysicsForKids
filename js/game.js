@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -242,6 +242,7 @@ let talk = null, sayText = '';
 function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
+  if (phase === 'uv' && UV) return UV.eli;
   if (phase === 'color' && CL) return CL.eli;
   if (phase === 'fire' && F) return F.eli;
   if (phase === 'rainbow' && RB) return RB.eli;
@@ -1895,13 +1896,197 @@ async function colorScene() {
   await eliVanish(CL.eli);
 }
 
+
+/* ===================== ГЛАВА «НЕВИДИМЫЙ СВЕТ» ===================== */
+/* Ультрафиолет (наш «невидимый» фотон) — самый сильный.
+   1) Лесенка: невидимый фотон подбрасывает Эли высоко; Эли немного съезжает вниз (часть энергии уходит в тепло)
+      и спрыгивает с цветным (зелёным) фотоном — «вошёл невидимый, вышел цветной» (флуоресценция; выходящий фотон
+      всегда слабее входящего).
+   2) Тёмная комната с ультрафиолетовой лампой: светятся рисунок фломастером-маркером и наклейки-звёздочки,
+      яблоко и камень — нет. Лампу выключили: маркер гаснет сразу (флуоресценция), звёздочки светятся ещё долго
+      (фосфоресценция: электроны «застревают» наверху и спрыгивают медленно). В маркерах и наклейках светятся
+      особые молекулы, а не водород.
+   3) Пляж: солнце шлёт и цветные, и невидимые фотоны; невидимые обжигают кожу (солнечный ожог — от ультрафиолета).
+      Ребёнок ловит невидимые фотоны, потом мажет крем: крем поглощает ультрафиолет (минеральный — ещё и рассеивает). */
+const UV_ROOM = [                                // предметы в тёмной комнате: светятся ли под лампой
+  { id: 'marker', glow: '#7dff6a', x: 0.2 }, { id: 'stars', glow: '#d8ff6a', x: 0.45 },
+  { id: 'apple', glow: null, x: 0.7 }, { id: 'rock', glow: null, x: 0.9 },
+];
+const UV_SVG = {
+  marker: c => `<svg viewBox="0 0 100 100" aria-hidden="true"><g fill="none" stroke="${c}" stroke-width="6" stroke-linecap="round">`
+    + '<circle cx="50" cy="38" r="12"/><path d="M50 50 V90 M50 70 Q34 60 26 66 M50 76 Q66 66 74 72"/>'
+    + [0, 1, 2, 3, 4, 5].map(i => { const a = i * Math.PI / 3; return `<circle cx="${50 + Math.cos(a) * 22}" cy="${38 + Math.sin(a) * 22}" r="8"/>`; }).join('') + '</g></svg>',
+  stars: c => '<svg viewBox="0 0 100 100" aria-hidden="true">' + [[30, 30, 18], [70, 44, 14], [40, 72, 16]].map(([x, y, r]) =>
+    `<polygon fill="${c}" points="${[...Array(10)].map((_, i) => { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; return (x + Math.cos(a) * rr) + ',' + (y + Math.sin(a) * rr); }).join(' ')}"/>`).join('') + '</svg>',
+  apple: c => `<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="47" y="12" width="6" height="18" rx="3" fill="#5a3a20"/><path d="${COL_SHAPES.apple}" fill="${c}"/></svg>`,
+  rock: c => `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M14 74 Q10 50 30 40 Q46 22 66 34 Q90 40 88 66 Q86 84 60 84 L30 84 Q16 84 14 74 Z" fill="${c}"/></svg>`,
+};
+const UV_LAMP = '<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="12" y="34" width="76" height="26" rx="13" fill="#3b2f6e" stroke="#c9b8ff" stroke-width="3"/><rect class="tube" x="20" y="40" width="60" height="14" rx="7" fill="#5a4a8a"/><rect x="44" y="60" width="12" height="26" rx="4" fill="#6b7088"/></svg>';
+const CREAM = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M30 18 H70 L76 84 Q50 92 24 84 Z" fill="#f3f5ff" stroke="#9aa0c8" stroke-width="3"/><rect x="38" y="6" width="24" height="14" rx="4" fill="#ffc53d"/><circle cx="50" cy="52" r="14" fill="#ffc53d"/></svg>';
+let UV = null;
+
+function uvPh(kind, cls = '') {                  // фотон-картинка (как в «Эли и свет»)
+  const im = new Image(); im.src = `img/${PH[kind].img}.webp`; im.alt = ''; im.draggable = false; im.className = 'uvph ' + cls; UV.root.appendChild(im); return im;
+}
+function uvFly(el, x0, y0, x1, y1, ms, size) {   // фотон летит по прямой; → animation
+  Object.assign(el.style, { width: size + 'px', height: size + 'px' });
+  return el.animate([{ transform: `translate(${x0 - size / 2}px,${y0 - size / 2}px)` }, { transform: `translate(${x1 - size / 2}px,${y1 - size / 2}px)` }],
+    { duration: ms * K, easing: 'linear', fill: 'forwards' });
+}
+const uvPose = n => { UV.eli.src = 'img/' + n + '.webp'; };
+
+/* --- 1) лесенка --- */
+async function uvLadder() {
+  const x0 = W * 0.22, x1 = W * 0.78, yG = H * 0.66, yM = H * 0.42, yT = H * 0.3, ph = L.eli * 0.4;
+  UV.root.insertAdjacentHTML('beforeend', `<svg class="uvlad" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">`
+    + [[yG, '#9aa0c8'], [yM, '#7dff6a'], [yT, '#e9e2ff']].map(([y, c]) => `<line x1="${x0}" y1="${y}" x2="${x1}" y2="${y}" stroke="${c}" stroke-width="7" stroke-linecap="round" opacity=".85"/>`).join('') + '</svg>');
+  const e = UV.eli, ey = y => y - 6 - e._b * 0.42;
+  setB(e, L.eli * 0.85); put(e, W / 2, ey(yG));
+  await say(T.uvLadder[0], { next: false });
+  const p = uvPh('uv'); await uvFly(p, -ph, ey(yG), W / 2, ey(yG), 1400, ph).finished.catch(() => {}); p.remove();
+  sfx('rise'); uvPose('eli_jump'); await go(e, { y: ey(yT), ms: 600 }); uvPose('eli_full');
+  await say(T.uvLadder[1], { next: false });
+  for (let i = 0; i < 8; i++) { const s = document.createElement('div'); s.className = 'spark'; s.style.background = '#ff8a3d'; UV.root.appendChild(s);
+    const a = Math.random() * Math.PI * 2;
+    s.animate([{ transform: `translate(${W / 2}px,${ey(yT)}px)`, opacity: 1 }, { transform: `translate(${W / 2 + Math.cos(a) * 60}px,${ey(yT) + Math.sin(a) * 60}px)`, opacity: 0 }], { duration: 700 * K }).finished.then(() => s.remove()); }
+  await go(e, { y: ey(yM), ms: 700 });
+  await say(T.uvLadder[2], { next: false });
+  sfx('fall'); uvPose('eli_blow');
+  const g = uvPh('green'); uvFly(g, W / 2, ey(yM), W + ph, ey(yM) - 40, 1500, ph).finished.then(() => g.remove());
+  await go(e, { y: ey(yG), ms: 500 }); uvPose('eli_hello');
+  await say(T.uvLadder[3]);
+  UV.root.querySelector('.uvlad').remove();
+}
+
+/* --- 2) тёмная комната --- */
+function uvRoomRender() {
+  const s = Math.min(W * 0.2, H * 0.12);
+  UV_ROOM.forEach(o => {
+    const el = UV.items[o.id], lit = UV.on && o.glow || (o.id === 'stars' && UV.after);
+    el.innerHTML = UV_SVG[o.id](lit ? o.glow : (o.id === 'apple' ? '#4a2a34' : '#2c2f4a'));
+    el.classList.toggle('lit', !!lit);
+    Object.assign(el.style, { left: W * o.x - s / 2 + 'px', top: H * 0.56 - s / 2 + 'px', width: s + 'px', height: s + 'px' });
+  });
+  const a = Math.max(60, Math.min(W * 0.26, H * 0.12));
+  Object.assign(UV.lamp.style, { left: W / 2 - a / 2 + 'px', top: H * 0.2 - a / 2 + 'px', width: a + 'px', height: a + 'px' });
+  UV.lamp.querySelector('.tube').setAttribute('fill', UV.on ? '#b48cff' : '#5a4a8a');
+  UV.glowBg.style.opacity = UV.on ? 1 : 0;
+}
+async function uvRoom() {
+  UV.inRoom = true;
+  UV.items = {};
+  for (const o of UV_ROOM) { const b = document.createElement('button'); b.type = 'button'; b.className = 'uvitem'; UV.root.appendChild(b); UV.items[o.id] = b; }
+  UV.lamp = document.createElement('button'); UV.lamp.type = 'button'; UV.lamp.className = 'uvitem'; UV.lamp.innerHTML = UV_LAMP; UV.root.appendChild(UV.lamp);
+  UV.glowBg = document.createElement('div'); UV.glowBg.className = 'uvglow'; UV.root.appendChild(UV.glowBg);
+  UV.on = false; UV.after = false; uvRoomRender();
+  setB(UV.eli, L.eli * 0.85); put(UV.eli, W * 0.86, H * 0.86);
+  await say(T.uvRoom, { next: false }); hideSay();
+  await tapObj(UV.lamp); UV.on = true; sfx('buzz'); uvRoomRender(); await wait(700);
+  await say(T.uvFind, { next: false }); hideSay();
+  const left = new Set(UV_ROOM.filter(o => o.glow).map(o => o.id));
+  await new Promise(res => {
+    for (const o of UV_ROOM) {
+      const el = UV.items[o.id];
+      if (o.glow) el.classList.add('tappable');
+      el.onclick = () => {
+        if (!o.glow) { sfx('oops'); el.animate([0, -8, 8, -6, 6, 0].map(x => ({ transform: `translateX(${x}px)` })), { duration: 500 * K }); return; }
+        if (!left.delete(o.id)) return;
+        sfx('ding'); el.classList.remove('tappable');
+        el.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.25)' }, { transform: 'scale(1)' }], { duration: 500 * K });
+        if (!left.size) { for (const x in UV.items) UV.items[x].onclick = null; setTimeout(res, 700); }
+      };
+    }
+  });
+  await say(T.uvOff, { next: false }); hideSay();
+  await tapObj(UV.lamp); UV.on = false; UV.after = true; sfx('pop'); uvRoomRender();
+  await wait(900);
+  for (const t of T.uvAfter) await say(t);
+  await UV.items.stars.animate([{ opacity: 1 }, { opacity: 0.25 }], { duration: 2500 * K, fill: 'forwards' }).finished.catch(() => {});   // звёздочки медленно гаснут
+  for (const x in UV.items) UV.items[x].remove(); UV.lamp.remove(); UV.glowBg.remove(); UV.inRoom = false;
+}
+
+/* --- 3) пляж --- */
+function uvBeachLayout() {
+  const a = Math.max(56, Math.min(W * 0.17, H * 0.09, 84));
+  UV.sun.style.cssText = `left:${W * 0.8 - a * 0.7}px;top:${H * 0.18 - a * 0.7}px;width:${a * 1.4}px;height:${a * 1.4}px`;
+  UV.cream.style.cssText = `left:${W * 0.16 - a / 2}px;top:${H * 0.86 - a / 2}px;width:${a}px;height:${a}px`;
+  UV.sand.style.top = H * 0.8 + 'px';
+  setB(UV.eli, L.eli); put(UV.eli, W * 0.45, H * 0.72);
+  UV.shield.style.cssText = `left:${W * 0.45 - L.eli * 0.75}px;top:${H * 0.72 - L.eli * 0.75}px;width:${L.eli * 1.5}px;height:${L.eli * 1.5}px`;
+}
+function uvShot(uvOnly = null) {                 // один фотон от солнца к Эли; → промис: 'hit' | 'caught' | 'bounced' | 'color'
+  const kind = uvOnly ?? (Math.random() < 0.55 ? 'uv' : ['red', 'green', 'yellow', 'cyan'][Math.floor(Math.random() * 4)]);
+  const ph = L.eli * 0.42, x0 = W * 0.8, y0 = H * 0.18, x1 = W * 0.45 + (Math.random() - 0.5) * L.eli * 0.4, y1 = H * 0.72 - L.eli * 0.1;
+  const el = uvPh(kind, kind === 'uv' ? 'uvbad' : '');
+  const an = uvFly(el, x0, y0, x1, y1, 2400, ph);
+  return new Promise(res => {
+    if (kind === 'uv' && UV.catching) el.onclick = () => { const tr = getComputedStyle(el).transform; an.cancel(); el.onclick = null; sfx('pop');
+      el.style.transform = tr; el.animate([{ opacity: 1 }, { opacity: 0, filter: 'blur(6px)' }], { duration: 300 * K }).finished.then(() => el.remove()); res('caught'); };
+    an.finished.then(() => {
+      if (kind !== 'uv') { el.remove(); res('color'); return; }
+      if (UV.shielded) {                         // крем: невидимый фотон не доходит до кожи
+        sfx('boing'); uvFly(el, x1, y1, x1 + (Math.random() - 0.5) * W, -40, 900, ph).finished.then(() => el.remove()); res('bounced'); return;
+      }
+      el.remove(); UV.burn = Math.min(1, UV.burn + 0.2); UV.eli.style.filter = `hue-rotate(${150 * UV.burn}deg) saturate(${1 + UV.burn})`;   // голубой Эли краснеет: голубой → сиреневый → розово-красный
+      sfx('buzz'); res('hit');
+    }).catch(() => {});
+  });
+}
+async function uvBeach() {
+  UV.sand = document.createElement('div'); UV.sand.className = 'uvsand'; UV.root.appendChild(UV.sand);
+  UV.sun = document.createElement('div'); UV.sun.className = 'uvitem'; UV.sun.innerHTML = SUN; UV.root.appendChild(UV.sun);
+  UV.cream = document.createElement('button'); UV.cream.type = 'button'; UV.cream.className = 'uvitem'; UV.cream.innerHTML = CREAM; UV.root.appendChild(UV.cream);
+  UV.shield = document.createElement('div'); UV.shield.className = 'uvshield'; UV.shield.hidden = true; UV.root.appendChild(UV.shield);
+  UV.burn = 0; UV.shielded = false; UV.catching = false; UV.inBeach = true; uvBeachLayout();
+  for (const t of T.uvBeach) await say(t);
+  await Promise.all([0, 1, 2].map(async i => { await wait(i * 500); return uvShot('uv'); }));   // без крема: обожглись
+  uvPose('eli_surprised'); await say(T.uvBurn); uvPose('eli_hello');
+  await say(T.uvCatch, { next: false }); hideSay();
+  UV.catching = true;
+  let caught = 0;
+  while (caught < 8) {                           // ловим 8 невидимых; цветные пусть летят
+    const shots = [uvShot(), wait(350).then(() => uvShot())];
+    const rs = await Promise.all(shots);
+    caught += rs.filter(r => r === 'caught').length;
+  }
+  UV.catching = false; await wait(1500);
+  await say(T.uvCream, { next: false }); hideSay();
+  await tapObj(UV.cream);
+  UV.shielded = true; UV.shield.hidden = false; sfx('sparkle');
+  UV.burn = 0; UV.eli.style.filter = '';
+  for (let i = 0; i < 6; i++) { uvShot(i % 2 ? null : 'uv'); await wait(450); }
+  await wait(2000);
+  await say(T.uvSafe);
+}
+
+async function uvScene() {
+  await flash();
+  clearStage();
+  phase = 'uv'; setLabel(T.uvLabel);
+  UV = {};
+  UV.root = document.createElement('div'); UV.root.id = 'uv'; stage.appendChild(UV.root);
+  UV.eli = sprite('eli_hello', 'front'); UV.eli.addEventListener('click', () => talkTap());
+  setB(UV.eli, L.eli * 0.85); put(UV.eli, W * 0.86, H * 0.86);
+  await unflash();
+  for (const t of T.uvIntro) await say(t);
+  await uvLadder();
+  await flash(); setB(UV.eli, L.eli * 0.85); put(UV.eli, W * 0.86, H * 0.86); await unflash();
+  await uvRoom();
+  await flash(); await unflash();
+  await uvBeach();
+  await say(T.uvWin);
+  await say(T.fireBye);
+  await eliVanish(UV.eli);
+}
+function uvRelayout() { if (!UV) return; if (UV.inRoom) uvRoomRender(); if (UV.inBeach) uvBeachLayout(); }
+
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color'];
-const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene };
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv'];
+const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene };
 let cur = -1;
 const DONE = new Set();
 try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
@@ -1937,6 +2122,7 @@ function relayout() {
   if (phase === 'atom') { const h = !!hopAnim; buildAtom(); if (h) hop(true); }
   if (phase === 'build' && BS) { layoutBuild(); syncBins(); renderAtom(); }
   if (phase === 'fire') layoutFire();
+  if (phase === 'uv') uvRelayout();
   if (phase === 'color') colRender();
   if (phase === 'rainbow') rbRender();
 }

@@ -88,6 +88,7 @@ function phrases(T) {                               // все фразы, кот
   add('eli', ...T.rbIntro, T.rbPrism, T.rbSplit, T.rbTouch, T.rbBack, T.rbWhite, T.rbSky, T.rbCloud, T.rbSun, T.rbBow, T.rbBowWhy,
     T.rbLamps, ...Object.values(T.rbLamp).flat(), T.rbTest, T.rbWrong, T.rbWin);   // «Радуга»   // «Салют»: название атома, когда его берут
   add('eli', ...T.colIntro, T.colChoose, ...Object.values(T.colMake), ...Object.values(T.colWhy), ...T.colHeat, T.colHeatEnd, ...T.colScreen, T.colScreenEnd, T.colWin);   // «Цвет»
+  add('eli', ...T.uvIntro, ...T.uvLadder, T.uvRoom, T.uvFind, T.uvOff, ...T.uvAfter, ...T.uvBeach, T.uvBurn, T.uvCatch, T.uvCream, T.uvSafe, T.uvWin);   // «Невидимый свет»
   for (const c of ['red', 'cyan', 'violet']) add('eli', T.s4ok(T.photons[c][1]));   // «летят два красных фотона»
   for (const m of [3, 4, 5]) for (const t of [3, 4, 5]) if (m !== t) add('eli', T.wrongStep(m, t));
   return out;
