@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 8 сцен (#apple, #build, #eli1…#eli5, #fire — глава «Салют»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -243,6 +243,7 @@ function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
   if (phase === 'fire' && F) return F.eli;
+  if (phase === 'rainbow' && RB) return RB.eli;
   return null;
 }
 function endTalk() {
@@ -1399,9 +1400,7 @@ async function fireTask(t) {                     // салют как на ка�
 
 async function fireScene() {
   await flash();
-  hop(false); clearRiver(); unask(); hideSay();
-  for (const c of [...stage.children]) if (!['top', 'counter', 'flash', 'start', 'confirm'].includes(c.id)) c.remove();
-  eli = null; spectrumOn = false; $('#score').innerHTML = '';
+  clearStage();
   phase = 'fire'; setLabel(T.fireLabel);
   const root = document.createElement('div'); root.id = 'fire'; stage.appendChild(root);
   FX.cv = document.createElement('canvas'); FX.cv.id = 'ffx'; root.appendChild(FX.cv);
@@ -1444,13 +1443,230 @@ async function fireScene() {
   await wait(800);
   await say(T.fireWin);
   await say(T.fireBye);
-  hideSay();                                       // «Ой, мне на работу» — Эли растворяется облачком
-  sfx('whoosh');
-  await F.eli.animate([{ filter: 'blur(0)', opacity: 1, transform: tf(F.eli) }, { filter: 'blur(14px)', opacity: 0, transform: tf(F.eli) + ' scale(1.6)' }],
+  await eliVanish(F.eli);
+}
+
+
+/* ===================== ОБЩЕЕ ДЛЯ НОВЫХ ГЛАВ ===================== */
+function clearStage() {                          // новая глава: со сцены убирается всё, кроме верхней панели
+  hop(false); clearRiver(); unask(); hideSay();
+  for (const c of [...stage.children]) if (!['top', 'counter', 'flash', 'start', 'confirm'].includes(c.id)) c.remove();
+  eli = null; spectrumOn = false; $('#score').innerHTML = '';
+}
+async function eliVanish(el) {                   // «Ой, мне на работу» — Эли растворяется облачком
+  hideSay(); sfx('whoosh');
+  await el.animate([{ filter: 'blur(0)', opacity: 1, transform: tf(el) }, { filter: 'blur(14px)', opacity: 0, transform: tf(el) + ' scale(1.6)' }],
     { duration: 1200 * K, easing: 'ease-in', fill: 'forwards' }).finished.catch(() => {});
   await wait(800);
-  try { localStorage.removeItem('eliNext'); } catch (e) {}
-  markDone('fire'); goScene(-1);                 // последняя глава — на стартовый экран
+}
+function tapObj(el) {                            // предмет светится и ждёт нажатия
+  el.classList.add('tappable');
+  return new Promise(r => { el.onclick = () => { el.onclick = null; el.classList.remove('tappable'); sfx('tap'); r(); }; });
+}
+function wl2rgb(l) {                             // цвет спектра для длины волны l (нм), 400–700
+  let r = 0, g = 0, b = 0;
+  if (l < 440) { r = (440 - l) / 60; b = 1; } else if (l < 490) { g = (l - 440) / 50; b = 1; } else if (l < 510) { g = 1; b = (510 - l) / 20; }
+  else if (l < 580) { r = (l - 510) / 70; g = 1; } else if (l < 645) { r = 1; g = (645 - l) / 65; } else r = 1;
+  const f = l < 420 ? 0.3 + 0.7 * (l - 400) / 20 : l > 680 ? 0.3 + 0.7 * (700 - l) / 20 : 1;
+  const c = x => Math.round(255 * Math.pow(Math.max(0, x * f), 0.8));
+  return `rgb(${c(r)},${c(g)},${c(b)})`;
+}
+
+/* ===================== ГЛАВА «РАДУГА» ===================== */
+/* 1) Белый свет лампы падает на экран белым пятном; ребёнок ставит призму — на экране радуга (призма сильнее всего
+      преломляет фиолетовый, слабее всего — красный). Ребёнок трогает все 6 цветов (звук: красный — низкий, фиолетовый — высокий:
+      частота света тоже растёт от красного к фиолетовому). Вторая, перевёрнутая призма снова собирает цвета в белый (опыт Ньютона).
+   2) Небо: нажать на тучу — дождь, на солнце — радуга. Радуга видна, когда солнце за спиной, а дождь впереди; красный снаружи.
+      Что на самом деле: в капле свет преломляется на входе, отражается от задней стенки и преломляется на выходе
+      (угол около 42° для красного и 40° для фиолетового) — «как маленькая призма» — упрощение.
+   3) Три лампы: обычная (все цвета), водородная (только 656, 486, 434 нм — штрихкод Эли; на самом деле есть ещё слабая
+      фиолетовая линия 410 нм; сама лампа светится розовым) и натриевая (только жёлтая 589 нм — на самом деле две близкие
+      линии 589,0 и 589,6; лампа оранжево-жёлтая). Испытание: по штрихкоду на картинке найти лампу. */
+const RB_LAMPS = { white: { c: '#fff6d8', lines: null }, h: { c: '#ff7ad9', lines: [656, 486, 434] }, na: { c: '#ffb02e', lines: [589] } };
+const RB_BANDS = [660, 610, 580, 530, 470, 420];  // красный, оранжевый, жёлтый, зелёный, синий, фиолетовый
+const PRISM = '<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="50,8 94,88 6,88" fill="rgba(190,230,255,.35)" stroke="#dff3ff" stroke-width="4" stroke-linejoin="round"/></svg>';
+const LAMP = c => '<svg viewBox="0 0 100 100" aria-hidden="true"><defs><radialGradient id="g' + c.slice(1) + '"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="' + c + '"/><stop offset="1" stop-color="' + c + '" stop-opacity=".6"/></radialGradient></defs>'
+  + '<circle cx="50" cy="40" r="32" fill="url(#g' + c.slice(1) + ')"/><rect x="36" y="70" width="28" height="20" rx="4" fill="#9aa0b8"/><rect x="40" y="90" width="20" height="6" rx="3" fill="#6b7088"/></svg>';
+const SUN = '<svg viewBox="0 0 100 100" aria-hidden="true">' + [...Array(12)].map((_, i) => { const a = i * Math.PI / 6;
+  return '<line x1="' + (50 + Math.cos(a) * 30) + '" y1="' + (50 + Math.sin(a) * 30) + '" x2="' + (50 + Math.cos(a) * 46) + '" y2="' + (50 + Math.sin(a) * 46) + '" stroke="#ffd23f" stroke-width="6" stroke-linecap="round"/>'; }).join('')
+  + '<circle cx="50" cy="50" r="24" fill="#ffc53d"/></svg>';
+const CLOUD = '<svg viewBox="0 0 100 60" aria-hidden="true"><g fill="#e8ecff"><circle cx="30" cy="36" r="18"/><circle cx="52" cy="26" r="22"/><circle cx="74" cy="36" r="17"/><rect x="14" y="36" width="76" height="18" rx="9"/></g></svg>';
+let RB = null;
+
+function rbObj(svg, label) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'rbobj'; b.innerHTML = svg; b.setAttribute('aria-label', label || '');
+  RB.root.appendChild(b); return b;
+}
+function rbPlace(el, x, y, w, h = w) { Object.assign(el.style, { left: x - w / 2 + 'px', top: y - h / 2 + 'px', width: w + 'px', height: h + 'px' }); }
+function rbGeo() {
+  const g = { sy: H * 0.68, sx0: W * 0.08, sx1: W * 0.92, sh: Math.max(26, H * 0.04), s: Math.min(W * 0.3, H * 0.16), a: Math.max(56, Math.min(W * 0.17, H * 0.09, 84)) };
+  g.lx = W * 0.14; g.ly = H * 0.22; g.px = W * 0.42; g.py = H * 0.4; g.qx = W * 0.6; g.qy = H * 0.54; g.trayY = H * 0.88;
+  g.xl = l => g.sx0 + (l - 400) / 300 * (g.sx1 - g.sx0);
+  return g;
+}
+function rbRender() {                            // всё нарисованное — заново из состояния RB
+  if (!RB) return;
+  const g = rbGeo(), S = RB.state, parts = [];
+  RB.svg.setAttribute('viewBox', `0 0 ${W} ${H}`); RB.svg.setAttribute('width', W); RB.svg.setAttribute('height', H);
+  const poly = (pts, fill, op = 1) => `<polygon points="${pts.map(p => p.join(',')).join(' ')}" fill="${fill}" opacity="${op}"/>`;
+  if (S.mode === 'lab') {
+    parts.push(`<rect x="${g.sx0}" y="${g.sy}" width="${g.sx1 - g.sx0}" height="${g.sh}" rx="6" fill="#1c1f3e" stroke="rgba(255,255,255,.35)" stroke-width="2"/>`);
+    if (S.lamp) {
+      const L0 = RB_LAMPS[S.lamp], lines = L0.lines, beam = S.lamp === 'white' ? '#fffdf2' : L0.c;
+      if (!S.prism) {                            // без призмы: луч прямо на экран — пятно цвета лампы
+        const ex = W * 0.5;
+        parts.push(`<line x1="${g.lx}" y1="${g.ly}" x2="${ex}" y2="${g.sy}" stroke="${beam}" stroke-width="9" stroke-linecap="round" opacity=".9"/>`);
+        parts.push(`<rect x="${ex - 18}" y="${g.sy}" width="36" height="${g.sh}" rx="6" fill="${beam}"/>`);
+      } else {
+        const p1 = [g.px - g.s * 0.2, g.py + g.s * 0.02], p2 = [g.px + g.s * 0.2, g.py + g.s * 0.06];
+        parts.push(`<line x1="${g.lx}" y1="${g.ly}" x2="${p1[0]}" y2="${p1[1]}" stroke="${beam}" stroke-width="9" stroke-linecap="round" opacity=".9"/>`);
+        parts.push(`<line x1="${p1[0]}" y1="${p1[1]}" x2="${p2[0]}" y2="${p2[1]}" stroke="${beam}" stroke-width="7" opacity=".6"/>`);
+        const ls = lines || [...Array(60)].map((_, i) => 400 + i * 5);
+        const w = lines ? 3 : 2.5;
+        if (S.prism2) {                          // вторая призма собирает всё обратно: дальше белый луч
+          const q1 = [g.qx - g.s * 0.12, g.qy - g.s * 0.05], q2 = [g.qx + g.s * 0.02, g.qy + g.s * 0.12];
+          ls.forEach((l, i) => { const t = i / Math.max(1, ls.length - 1);
+            parts.push(poly([[p2[0], p2[1]], [p2[0] + 1, p2[1] + 2], [q1[0] - 12 + 24 * t, q1[1] + 2], [q1[0] - 12 + 24 * t - 1, q1[1]]], wl2rgb(l), 0.9)); });
+          parts.push(`<line x1="${q2[0]}" y1="${q2[1]}" x2="${g.qx + g.s * 0.1}" y2="${g.sy}" stroke="${beam}" stroke-width="9" stroke-linecap="round"/>`);
+          parts.push(`<rect x="${g.qx + g.s * 0.1 - 18}" y="${g.sy}" width="36" height="${g.sh}" rx="6" fill="${beam}"/>`);
+        } else {
+          for (const l of ls) {
+            const x = g.xl(l), d = lines ? 3 : (g.xl(l + 5) - x) / 2 + 0.5;
+            parts.push(poly([[p2[0] - w / 2, p2[1]], [p2[0] + w / 2, p2[1]], [x + d, g.sy], [x - d, g.sy]], wl2rgb(l), lines ? 0.95 : 0.8));
+            parts.push(`<rect x="${x - d}" y="${g.sy}" width="${2 * d}" height="${g.sh}" fill="${wl2rgb(l)}"/>`);
+          }
+        }
+      }
+    }
+    if (S.target) {                              // картинка-образец: штрихкод, который надо узнать
+      const tx0 = W * 0.5, tx1 = W * 0.92, ty = H * 0.13, th = g.sh * 1.2, tl = RB_LAMPS[S.target].lines;
+      parts.push(`<rect x="${tx0 - 6}" y="${ty - 6}" width="${tx1 - tx0 + 12}" height="${th + 12}" rx="10" fill="rgba(5,6,25,.6)" stroke="rgba(255,255,255,.55)" stroke-width="3"/>`);
+      const xs = l => tx0 + (l - 400) / 300 * (tx1 - tx0);
+      (tl || [...Array(60)].map((_, i) => 400 + i * 5)).forEach(l =>
+        parts.push(`<rect x="${xs(l) - (tl ? 2.5 : 1.6)}" y="${ty}" width="${tl ? 5 : 3.4}" height="${th}" fill="${wl2rgb(l)}"/>`));
+    }
+  } else {                                       // небо: дождь и радуга
+    if (S.rain) for (let i = 0; i < 28; i++) {
+      const x = W * (0.5 + ((i * 0.618) % 1) * 0.45), y = H * (0.3 + ((i * 0.382 + i * i * 0.071) % 1) * 0.42);
+      parts.push(`<line class="drop" style="animation-delay:${-(i * 0.13) % 0.8}s" x1="${x}" y1="${y}" x2="${x - 3}" y2="${y + 16}" stroke="#a9c8ff" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>`);
+    }
+    if (S.bow) {
+      const cx = W * 0.68, cy = H * 0.9, r0 = Math.min(W * 0.28, H * 0.3), sw = Math.max(6, r0 * 0.05);
+      RB_BANDS.forEach((l, i) => { const r = r0 - i * sw;          // красный — снаружи
+        parts.push(`<path class="bow" d="M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}" fill="none" stroke="${wl2rgb(l)}" stroke-width="${sw + 0.5}" opacity=".85"/>`); });
+    }
+  }
+  RB.svg.innerHTML = parts.join('');
+  // предметы
+  const o = RB.obj;
+  rbPlace(o.prism, S.prism ? g.px : W * 0.3, S.prism ? g.py : g.trayY, S.prism ? g.s : g.a);
+  o.prism.hidden = !(S.mode === 'lab' && (S.prism || S.prismTray));
+  rbPlace(o.prism2, S.prism2 ? g.qx : W * 0.5, S.prism2 ? g.qy : g.trayY, S.prism2 ? g.s * 0.7 : g.a);
+  o.prism2.hidden = !(S.mode === 'lab' && (S.prism2 || S.prism2Tray));
+  ['white', 'h', 'na'].forEach((k, i) => {
+    const on = S.lamp === k;
+    rbPlace(o.lamps[k], on ? g.lx : W * (0.22 + i * 0.22), on ? g.ly : g.trayY, g.a);
+    o.lamps[k].hidden = !(S.mode === 'lab' && (on || S.lampTray));
+  });
+  rbPlace(o.sun, W * 0.16, H * 0.22, g.a * 1.4); o.sun.hidden = S.mode !== 'sky';
+  rbPlace(o.cloud, W * 0.72, H * 0.24, g.a * 2.2, g.a * 1.3); o.cloud.hidden = S.mode !== 'sky';
+  setB(RB.eli, L.eli * 0.95);
+  put(RB.eli, S.mode === 'sky' ? W * 0.3 : W * 0.86, S.mode === 'sky' ? H * 0.8 : H * 0.85, RB.eli._k ?? 1);
+}
+function touchBands() {                          // ребёнок трогает все 6 цветов на экране
+  const g = rbGeo(), left = new Set(RB_BANDS);
+  return new Promise(res => {
+    RB_BANDS.forEach(l => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'rbband tappable'; b.setAttribute('aria-label', String(l));
+      const w = (g.sx1 - g.sx0) / 6;
+      Object.assign(b.style, { left: g.xl(l) - w / 2 + 'px', top: g.sy - 26 + 'px', width: w + 'px', height: g.sh + 52 + 'px' });
+      b.onclick = () => {
+        if (soundOn()) tone(SND.ac.currentTime, 330 + (700 - l) * 3, 0.45, 'sine', 0.28);   // красный — низкий, фиолетовый — высокий
+        const d = document.createElement('div'); d.className = 'rbpulse'; d.style.background = wl2rgb(l);
+        Object.assign(d.style, { left: g.xl(l) - 22 + 'px', top: g.sy + g.sh / 2 - 22 + 'px' }); RB.root.appendChild(d);
+        d.animate([{ transform: 'scale(.4)', opacity: 1 }, { transform: 'scale(2.2)', opacity: 0 }], { duration: 700 * K, easing: 'ease-out' }).finished.then(() => d.remove());
+        if (left.delete(l)) b.classList.remove('tappable');
+        if (!left.size) { RB.root.querySelectorAll('.rbband').forEach(x => x.remove()); setTimeout(res, 700); }
+      };
+      RB.root.appendChild(b);
+    });
+  });
+}
+function tapLamp() {                             // все лампы в корзинке светятся; → какую нажали
+  return new Promise(r => {
+    for (const k in RB.obj.lamps) {
+      const el = RB.obj.lamps[k]; el.classList.add('tappable');
+      el.onclick = () => { for (const x in RB.obj.lamps) { RB.obj.lamps[x].onclick = null; RB.obj.lamps[x].classList.remove('tappable'); } sfx('tap'); r(k); };
+    }
+  });
+}
+const rbPose = n => { RB.eli.src = 'img/' + n + '.webp'; };
+
+async function rainbowScene() {
+  await flash();
+  clearStage();
+  phase = 'rainbow'; setLabel(T.rbLabel);
+  RB = { state: { mode: 'lab', lamp: 'white', prism: false, prismTray: true, prism2: false, prism2Tray: false, lampTray: false, target: null, rain: false, bow: false } };
+  RB.root = document.createElement('div'); RB.root.id = 'rb'; stage.appendChild(RB.root);
+  RB.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); RB.svg.id = 'rbsvg'; RB.root.appendChild(RB.svg);
+  RB.obj = { prism: rbObj(PRISM), prism2: rbObj(PRISM), sun: rbObj(SUN), cloud: rbObj(CLOUD),
+    lamps: { white: rbObj(LAMP(RB_LAMPS.white.c)), h: rbObj(LAMP(RB_LAMPS.h.c)), na: rbObj(LAMP(RB_LAMPS.na.c)) } };
+  RB.obj.prism2.classList.add('flip');
+  RB.eli = sprite('eli_hello', 'front'); RB.eli.addEventListener('click', () => talkTap());
+  const S = RB.state, set = o => { Object.assign(S, o); rbRender(); };
+  rbRender();
+  await unflash();
+
+  // 1) призма
+  for (const t of T.rbIntro) await say(t);
+  await say(T.rbPrism, { next: false }); hideSay();
+  await tapObj(RB.obj.prism);
+  set({ prism: true }); sfx('sparkle'); await wait(900);
+  await say(T.rbSplit);
+  await say(T.rbTouch, { next: false }); hideSay();
+  await touchBands();
+  await say(T.rbBack, { next: false }); hideSay();
+  set({ prism2Tray: true });
+  await tapObj(RB.obj.prism2);
+  set({ prism2: true }); sfx('sparkle'); await wait(1000);
+  await say(T.rbWhite);
+
+  // 2) небо
+  await flash(); set({ mode: 'sky', prism2: false, prism2Tray: false }); await unflash();
+  await say(T.rbSky);
+  await say(T.rbCloud, { next: false }); hideSay();
+  await tapObj(RB.obj.cloud); set({ rain: true }); sfx('whoosh'); await wait(800);
+  await say(T.rbSun, { next: false }); hideSay();
+  await tapObj(RB.obj.sun); set({ bow: true }); sfx('sparkle'); await wait(1300);
+  await say(T.rbBow);
+  await say(T.rbBowWhy);
+
+  // 3) лампы
+  await flash(); set({ mode: 'lab', prism: true, prismTray: false, lamp: null, lampTray: true, rain: false, bow: false }); await unflash();
+  await say(T.rbLamps, { next: false }); hideSay();
+  const seen = new Set();
+  while (seen.size < 3) {
+    const k = await tapLamp();
+    set({ lamp: k }); await wait(1200);
+    if (!seen.has(k)) { seen.add(k); for (const t of T.rbLamp[k]) await say(t); hideSay(); }
+  }
+  await say(T.rbTest, { next: false }); hideSay();
+  for (const target of ['h', 'na', 'white']) {
+    set({ lamp: null, target });
+    for (;;) {
+      const k = await tapLamp();
+      set({ lamp: k }); await wait(1300);
+      if (k === target) break;
+      sfx('oops'); rbPose('eli_surprised');
+      await say(T.rbWrong, { next: false }); hideSay(); rbPose('eli_hello');
+      set({ lamp: null });
+    }
+    sfx('ding'); rbPose('eli_jump'); await bounce(RB.eli, 1.12, 0.9); await wait(500); rbPose('eli_hello');
+  }
+  set({ target: null });
+  await say(T.rbWin);
+  await say(T.fireBye);
+  await eliVanish(RB.eli);
 }
 
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
@@ -1458,8 +1674,8 @@ async function fireScene() {
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire'];
-const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene };
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow'];
+const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene };
 let cur = -1;
 const DONE = new Set();
 try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
@@ -1478,6 +1694,8 @@ async function runFrom(name) {
     markDone(SCENES[i]);
     try { localStorage.setItem('eliNext', SCENES[i + 1] || ''); } catch (e) {}
   }
+  try { localStorage.removeItem('eliNext'); } catch (e) {}
+  goScene(-1);                                    // последняя глава пройдена — на стартовый экран
 }
 
 /* ===================== СТАРТ ===================== */
@@ -1493,6 +1711,7 @@ function relayout() {
   if (phase === 'atom') { const h = !!hopAnim; buildAtom(); if (h) hop(true); }
   if (phase === 'build' && BS) { layoutBuild(); syncBins(); renderAtom(); }
   if (phase === 'fire') layoutFire();
+  if (phase === 'rainbow') rbRender();
 }
 addEventListener('resize', () => { clearTimeout(relayout._t); relayout._t = setTimeout(relayout, 150); });
 

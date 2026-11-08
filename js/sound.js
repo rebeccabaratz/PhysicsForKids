@@ -6,6 +6,7 @@
 
 const VOICE_VOLUME = 1.0;
 const SFX_VOLUME = 0.55;
+const MUTE = /[?&]mute\b/.test(location.search);   // адрес …/?mute#he-fire — проверка без звука (например, ночью)
 
 function voiceKey(text) {                         // FNV-1a, 32 бита; тот же ключ считает tools/make_voice.mjs
   let h = 0x811c9dc5;
@@ -20,8 +21,8 @@ function audioCtx() {
   const C = window.AudioContext || window.webkitAudioContext;
   if (!C) return null;
   const ac = SND.ac = new C();
-  SND.voice = ac.createGain(); SND.voice.gain.value = VOICE_VOLUME; SND.voice.connect(ac.destination);
-  SND.sfx = ac.createGain(); SND.sfx.gain.value = SFX_VOLUME; SND.sfx.connect(ac.destination);
+  SND.voice = ac.createGain(); SND.voice.gain.value = MUTE ? 0 : VOICE_VOLUME; SND.voice.connect(ac.destination);
+  SND.sfx = ac.createGain(); SND.sfx.gain.value = MUTE ? 0 : SFX_VOLUME; SND.sfx.connect(ac.destination);
   const n = SND.noise = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), d = n.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   return ac;

@@ -84,7 +84,9 @@ function phrases(T) {                               // все фразы, кот
   add('eli', ...T.s1, T.s1uv, T.s1yellow, T.s1drop, T.s2intro, T.s2end, T.s2rainbow, T.s3intro, T.s3hint, T.pass,
     T.s4b, T.laserPump, T.laserFire, T.laserWin, T.s4wrong, T.s4end, T.s5intro(PASS_SCORE), T.win, T.almost, T.teaser);
   add('eli', ...T.fire, T.fireDemo, T.fireDemoEnd, ...T.fireWhy, T.fireFree, T.fireTask, T.fireWrong, ...T.fireGray, T.fireWin, T.fireBye);
-  add('eli', ...Object.values(T.fireAtoms).map(n => n + '.'));   // «Салют»: название атома, когда его берут
+  add('eli', ...Object.values(T.fireAtoms).map(n => n + '.'));
+  add('eli', ...T.rbIntro, T.rbPrism, T.rbSplit, T.rbTouch, T.rbBack, T.rbWhite, T.rbSky, T.rbCloud, T.rbSun, T.rbBow, T.rbBowWhy,
+    T.rbLamps, ...Object.values(T.rbLamp).flat(), T.rbTest, T.rbWrong, T.rbWin);   // «Радуга»   // «Салют»: название атома, когда его берут
   for (const c of ['red', 'cyan', 'violet']) add('eli', T.s4ok(T.photons[c][1]));   // «летят два красных фотона»
   for (const m of [3, 4, 5]) for (const t of [3, 4, 5]) if (m !== t) add('eli', T.wrongStep(m, t));
   return out;

@@ -54,7 +54,9 @@
 - `index.html` — разметка; `css/style.css`; `js/texts.js` — **все** фразы (`T_RU`, `T_HE`, одинаковые ключи);
   `js/sound.js` — голос и синтезированные звуки; `js/game.js` — логика, в начале — объект `P` с параметрами
   и заголовок-описание (добавил параметр — допиши в заголовок).
-- Сцены: `SCENES = ['apple','build','eli1'…'eli5','fire']`, адрес `#he-eli3`, `#he-fire`.
+- Сцены: `SCENES = ['apple','build','eli1'…'eli5','fire','rainbow']`, адрес `#he-eli3`, `#he-fire`.
+  Новая глава: функция сцены (начинается с `clearStage()`, кончается `eliVanish(...)`), добавить в `SCENES` и `SCENE_FN`,
+  её фразы — в `phrases()` в `tools/make_voice.mjs`. Проверять без звука: `/?mute#he-<сцена>`.
 - Хранение в браузере (`localStorage`, всегда в try/catch): `eliLang`, `eliDone`, `eliNext`, `eliBadge`, `eliBarcode`.
 - RTL: на иврите `dir="rtl"`; каждому `position:absolute` элементу задавать явные `left`/`top`.
 - Физика Эли: уровни водорода `EN(n) = −13,6/n²` эВ; фотоны УФ 10,2 (1→2), красный 656 нм (2→3),
