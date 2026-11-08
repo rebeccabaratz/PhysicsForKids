@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции», #leaf — «Лист делает сахар»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции», #leaf — «Лист делает сахар», #elec — «Электричество»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -242,6 +242,7 @@ let talk = null, sayText = '';
 function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
+  if (phase === 'elec' && EL) return EL.eli;
   if (phase === 'leaf' && LF) return LF.eli;
   if (phase === 'react' && RX) return RX.eli;
   if (phase === 'chem' && CH) return CH.eli;
@@ -2663,13 +2664,170 @@ async function leafScene() {
   await eliVanish(LF.eli);
 }
 
+
+/* ===================== ГЛАВА «ЭЛЕКТРИЧЕСТВО» ===================== */
+/* Эли с командой электронов зажигает свет.
+   1) Цепь: батарейка, лампа, выключатель; в проводе три дырки — ребёнок их закрывает; цепь замкнута — электроны бегут
+      от «−» батарейки через лампу к «+», лампа горит; выключатель разомкнул цепь — электроны стоят, лампа гаснет.
+      Что на самом деле: в учебниках «ток» рисуют наоборот, от «+» к «−» (так договорились до открытия электрона).
+   2) Электроны в проводе ползут медленнее улитки: при 1 А в медном проводе 1 мм² — около 0,07 мм/с
+      (v = I / (n·S·e), n ≈ 8,5·10²⁸ в м³); улитка — около 1 мм/с (в гонке улитка в 14 раз быстрее).
+      Но лампа загорается сразу: провод полон электронов, толчок передаётся почти мгновенно — как шарики в трубке.
+   3) Дом: в каждой комнате своя лампа и свой выключатель — ребёнок зажигает свет везде.
+   Обязательная фраза о безопасности — одна, в начале. */
+const BATTERY = '<svg viewBox="0 0 60 100" aria-hidden="true"><rect x="10" y="14" width="40" height="80" rx="8" fill="#3d6bff"/><rect x="10" y="60" width="40" height="34" rx="8" fill="#ffc53d"/><rect x="22" y="4" width="16" height="12" rx="3" fill="#c9cfee"/><text x="30" y="44" text-anchor="middle" font-size="26" fill="#fff" font-family="Rubik,sans-serif">−</text><text x="30" y="86" text-anchor="middle" font-size="24" fill="#3a2500" font-family="Rubik,sans-serif">+</text></svg>';
+const BULB = on => `<svg viewBox="0 0 100 100" aria-hidden="true">${on ? '<circle cx="50" cy="40" r="44" fill="#ffe36b" opacity=".35"/>' : ''}<circle cx="50" cy="40" r="28" fill="${on ? '#fff3a8' : 'rgba(220,235,255,.18)'}" stroke="#dff3ff" stroke-width="3"/><path d="M40 44 Q50 30 60 44" stroke="${on ? '#ff9a3d' : '#9aa0c8'}" stroke-width="3" fill="none"/><rect x="38" y="66" width="24" height="18" rx="3" fill="#9aa0c8"/></svg>`;
+const SWITCH = on => `<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="12" y="20" width="76" height="60" rx="14" fill="#2c2f4a" stroke="#9aa0c8" stroke-width="3"/><rect x="${on ? 48 : 18}" y="28" width="34" height="44" rx="10" fill="${on ? '#5dff8a' : '#ff6b6b'}"/></svg>`;
+const SNAIL = '<svg viewBox="0 0 100 70" aria-hidden="true"><path d="M8 60 Q50 66 92 60 L86 52 Q50 56 20 52 Z" fill="#c9a25e"/><circle cx="50" cy="36" r="22" fill="#ff8a3d"/><path d="M50 36 m-12 0 a12 12 0 1 1 12 12 a7 7 0 1 1 -7 -7" stroke="#a24d14" stroke-width="3" fill="none"/><path d="M78 54 Q86 30 82 22 M86 54 Q94 34 92 26" stroke="#c9a25e" stroke-width="4" fill="none"/><circle cx="82" cy="20" r="3" fill="#1b1e4a"/><circle cx="92" cy="24" r="3" fill="#1b1e4a"/></svg>';
+let EL = null;
+
+function elEl(cls, html = '', button = false) {
+  const e = document.createElement(button ? 'button' : 'div'); if (button) e.type = 'button';
+  e.className = 'elo ' + cls; e.innerHTML = html; EL.root.appendChild(e); return e;
+}
+const elPl = (e, x, y, w, h = w) => Object.assign(e.style, { left: x - w / 2 + 'px', top: y - h / 2 + 'px', width: w + 'px', height: h + 'px' });
+/* --- цепь: прямоугольник, точка на нём по параметру t ∈ [0,1): верх, право, низ, лево --- */
+function elRect() { return { x0: W * 0.16, y0: H * 0.3, x1: W * 0.84, y1: H * 0.62 }; }
+function elAt(t) {
+  const r = elRect(), w = r.x1 - r.x0, h = r.y1 - r.y0, P = 2 * (w + h); let d = ((t % 1) + 1) % 1 * P;
+  if (d < w) return [r.x0 + d, r.y0]; d -= w;
+  if (d < h) return [r.x1, r.y0 + d]; d -= h;
+  if (d < w) return [r.x1 - d, r.y1]; d -= w;
+  return [r.x0, r.y1 - d];
+}
+const EL_GAPS = [[0.03, 0.08], [0.17, 0.22], [0.58, 0.66]];   // дырки в проводе
+const EL_PARTS = { bulb: 0.125, sw: 0.375, bat: 0.875 };
+function elDraw() {
+  const r = elRect(), parts = [], N = 160;
+  for (let i = 0; i < N; i++) {                  // провод — кусочками, кроме дырок
+    const t0 = i / N, t1 = (i + 1) / N, m = (t0 + t1) / 2;
+    if (EL.gaps.some((open, g) => open && m > EL_GAPS[g][0] && m < EL_GAPS[g][1])) continue;
+    const [ax, ay] = elAt(t0), [bx, by] = elAt(t1);
+    parts.push(`<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="#ffb02e" stroke-width="6" stroke-linecap="round"/>`);
+  }
+  EL.svg.setAttribute('viewBox', `0 0 ${W} ${H}`); EL.svg.setAttribute('width', W); EL.svg.setAttribute('height', H);
+  EL.svg.innerHTML = parts.join(''); void r;
+  const a = Math.max(56, Math.min(W * 0.17, H * 0.1, 84));
+  const pb = elAt(EL_PARTS.bulb), ps = elAt(EL_PARTS.sw), pt = elAt(EL_PARTS.bat);
+  elPl(EL.bulb, pb[0], pb[1] - a * 0.25, a * 1.1); EL.bulb.innerHTML = BULB(EL.lit);
+  elPl(EL.sw, ps[0], ps[1], a); EL.sw.innerHTML = SWITCH(EL.on);
+  elPl(EL.bat, pt[0], pt[1], a * 0.6, a);
+  EL.gapBtns.forEach((b, g) => { const [x, y] = elAt((EL_GAPS[g][0] + EL_GAPS[g][1]) / 2); elPl(b, x, y, 48); b.hidden = !EL.gaps[g]; });
+}
+function elFlow(on) {                            // электроны бегут по кругу, пока цепь замкнута
+  EL.flowing = on;
+  if (!on || EL.raf) return;
+  const dots = [...Array(18)].map((_, i) => { const d = document.createElement('i'); d.className = 'eldot'; EL.root.appendChild(d); return { d, t: i / 18 }; });
+  let last = performance.now();
+  const frame = now => {
+    if (!EL.flowing || !EL.root.isConnected) { dots.forEach(x => x.d.remove()); EL.raf = 0; return; }
+    const dt = (now - last) / 1000 / K; last = now;
+    for (const x of dots) { x.t = (x.t + dt * 0.05) % 1; const [px, py] = elAt(x.t); x.d.style.transform = `translate(${px - 5}px,${py - 5}px)`; }
+    EL.raf = requestAnimationFrame(frame);
+  };
+  EL.raf = requestAnimationFrame(frame);
+}
+async function elCircuit() {
+  EL.gaps = [true, true, true]; EL.on = true; EL.lit = false;
+  EL.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); EL.svg.classList.add('elsvg'); EL.root.appendChild(EL.svg);
+  EL.bulb = elEl(''); EL.sw = elEl('', '', true); EL.bat = elEl('', BATTERY);
+  EL.gapBtns = EL_GAPS.map(() => elEl('elgap', '', true));
+  elDraw();
+  await say(T.elFix, { next: false }); hideSay();
+  await new Promise(res => {
+    EL.gapBtns.forEach((b, g) => { b.classList.add('tappable'); b.onclick = () => {
+      b.onclick = null; b.classList.remove('tappable'); EL.gaps[g] = false; sfx('pop'); elDraw();
+      if (!EL.gaps.some(Boolean)) res();
+    }; });
+  });
+  EL.lit = true; elDraw(); sfx('ding'); elFlow(true);
+  await say(T.elLit);
+  await say(T.elSwitch, { next: false }); hideSay();
+  await tapObj(EL.sw);
+  EL.on = false; EL.lit = false; elFlow(false); EL.gaps = [false, false, false]; elDraw(); sfx('pop');
+  await say(T.elOpen);
+  EL.root.innerHTML = '';
+}
+async function elSnail() {
+  const y = H * 0.45, x0 = W * 0.1, a = Math.max(56, Math.min(W * 0.17, H * 0.1, 84));
+  const wire = elEl('elwire'); Object.assign(wire.style, { left: x0 + 'px', top: y + a * 0.35 + 'px', width: W * 0.8 + 'px' });
+  const sn = elEl('', SNAIL); elPl(sn, x0, y, a * 1.1, a * 0.77);
+  const e = document.createElement('i'); e.className = 'eldot big'; EL.root.appendChild(e);
+  e.style.transform = `translate(${x0 - 7}px,${y + a * 0.35 - 7}px)`;
+  await say(T.elSnail[0]);
+  const t0 = performance.now(), dur = 5000 * K;
+  await new Promise(res => { const f = now => { const p = Math.min(1, (now - t0) / dur);
+    sn.style.left = x0 + p * W * 0.7 - a * 0.55 + 'px'; e.style.transform = `translate(${x0 + p * W * 0.05 - 7}px,${y + a * 0.35 - 7}px)`;
+    if (p < 1) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });
+  await say(T.elSnail[1]);
+  EL.root.innerHTML = '';
+  // трубка с шариками: толкнули один — сразу выпал другой
+  const n = 9, d = Math.min(W * 0.075, 34), tx = W / 2 - n * d / 2, ty = H * 0.45;
+  const tube = elEl('eltube'); Object.assign(tube.style, { left: tx - 6 + 'px', top: ty - d / 2 - 6 + 'px', width: n * d + 12 + 'px', height: d + 12 + 'px' });
+  let balls = [...Array(n)].map((_, i) => { const b = document.createElement('i'); b.className = 'eldot ball'; Object.assign(b.style, { width: d - 4 + 'px', height: d - 4 + 'px' });
+    b.style.transform = `translate(${tx + i * d + 2}px,${ty - d / 2 + 2}px)`; EL.root.appendChild(b); return b; });
+  const bulb = elEl(''); elPl(bulb, tx + n * d + a * 0.7, ty, a); bulb.innerHTML = BULB(false);
+  const push = elEl('elpush', '', true); elPl(push, tx - a * 0.6, ty, a * 0.7);
+  for (const t of T.elWhy.slice(0, 3)) await say(t);
+  await say(T.elWhy[3], { next: false }); hideSay();
+  for (let k = 0; k < 2; k++) {
+    await tapObj(push);
+    const nb = document.createElement('i'); nb.className = 'eldot ball'; Object.assign(nb.style, { width: d - 4 + 'px', height: d - 4 + 'px' }); EL.root.appendChild(nb);
+    balls.unshift(nb);
+    balls.forEach((b, i) => b.animate([{ transform: `translate(${tx + (i - 1) * d + 2}px,${ty - d / 2 + 2}px)` }, { transform: `translate(${tx + i * d + 2}px,${ty - d / 2 + 2}px)` }],
+      { duration: 300 * K, fill: 'forwards', easing: 'ease-out' }));
+    const out = balls.pop(); bulb.innerHTML = BULB(true); sfx('ding');
+    out.animate([{ transform: `translate(${tx + n * d + 2}px,${ty - d / 2 + 2}px)`, opacity: 1 }, { transform: `translate(${tx + n * d + 30}px,${ty + 60}px)`, opacity: 0 }], { duration: 600 * K, fill: 'forwards' }).finished.then(() => out.remove());
+    await wait(900); bulb.innerHTML = BULB(false);
+  }
+  EL.root.innerHTML = '';
+}
+async function elHouse() {
+  const a = Math.max(56, Math.min(W * 0.16, H * 0.09, 80)), rw = W * 0.28, rh = H * 0.22, y = H * 0.42;
+  const roof = elEl('', `<svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path d="M0 30 L50 0 L100 30 Z" fill="#ff8a3d"/></svg>`);
+  Object.assign(roof.style, { left: W * 0.06 + 'px', top: y - rh / 2 - H * 0.1 + 'px', width: W * 0.88 + 'px', height: H * 0.1 + 'px' });
+  const rooms = [0, 1, 2].map(i => {
+    const x = W * (0.2 + i * 0.3), room = elEl('elroom'); elPl(room, x, y, rw, rh);
+    const b = elEl(''); elPl(b, x, y - rh * 0.15, a * 0.8); b.innerHTML = BULB(false);
+    const s = elEl('', SWITCH(false), true); elPl(s, x, y + rh * 0.3, a * 0.6);
+    return { room, b, s, on: false };
+  });
+  await say(T.elHouse, { next: false }); hideSay();
+  await new Promise(res => rooms.forEach(r => { r.s.classList.add('tappable'); r.s.onclick = () => {
+    r.s.onclick = null; r.s.classList.remove('tappable'); r.on = true; r.s.innerHTML = SWITCH(true); r.b.innerHTML = BULB(true); r.room.classList.add('lit'); sfx('ding');
+    if (rooms.every(x => x.on)) setTimeout(res, 700);
+  }; }));
+}
+
+async function elecScene() {
+  await flash();
+  clearStage();
+  phase = 'elec'; setLabel(T.elLabel);
+  EL = { raf: 0, flowing: false };
+  EL.root = document.createElement('div'); EL.root.id = 'el'; stage.appendChild(EL.root);
+  EL.eli = sprite('eli_hello', 'front'); EL.eli.addEventListener('click', () => talkTap());
+  setB(EL.eli, L.eli * 0.8); put(EL.eli, W * 0.88, H * 0.82);
+  await unflash();
+  for (const t of T.elIntro) await say(t);
+  await say(T.elSafe);
+  await elCircuit();
+  await flash(); await unflash();
+  await elSnail();
+  await flash(); await unflash();
+  await elHouse();
+  await say(T.elWin);
+  await say(T.fireBye);
+  await eliVanish(EL.eli);
+}
+function elRelayout() { if (!EL) return; setB(EL.eli, L.eli * 0.8); put(EL.eli, W * 0.88, H * 0.82); if (EL.svg && EL.svg.isConnected) elDraw(); }
+
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react', 'leaf'];
-const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene, leaf: leafScene };
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react', 'leaf', 'elec'];
+const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene, leaf: leafScene, elec: elecScene };
 let cur = -1;
 const DONE = new Set();
 try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
@@ -2705,6 +2863,7 @@ function relayout() {
   if (phase === 'atom') { const h = !!hopAnim; buildAtom(); if (h) hop(true); }
   if (phase === 'build' && BS) { layoutBuild(); syncBins(); renderAtom(); }
   if (phase === 'fire') layoutFire();
+  if (phase === 'elec') elRelayout();
   if (phase === 'leaf') lfLayout();
   if (phase === 'react') rxRelayout();
   if (phase === 'chem') chLayout();
