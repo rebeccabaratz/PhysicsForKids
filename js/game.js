@@ -979,7 +979,7 @@ async function testTask(t, i) {
       if (r0.type === 'up') await dropToTwo();
     }
   }
-  ask(t.to, false);
+  ask(t.to, false, t.from === 2);                // вниз (фотон-повторюшка) ступенька не мигает: ребёнок брал её цвет
   const { c, x, y } = await river(t.colors);
   const r = await hit(c, x, y);
   unask();
@@ -1078,7 +1078,7 @@ async function eliStage1() {                     // Этап 1 — смотри�
   await demo('yellow', null);   await say(T.s1yellow);
   await demo('red', 3);
   hideSay(); await dropToTwo(T.s1drop);
-  hideSay(); await dropHome(T.s1uvout);
+  hideSay(); await dropHome();
   hideSay();
 }
 
