@@ -398,3 +398,20 @@ button.mgo{cursor:pointer;z-index:10}
 .mgiron.on{box-shadow:0 0 26px rgba(255,74,74,.7)}
 .mgarrow{transition:transform .35s ease-out}
 @media (prefers-reduced-motion:reduce){.mgarrow,.mgiron{transition:none}}
+
+/* глава «Эли пришёл в гости» */
+#fn{position:absolute;inset:0;z-index:6}
+.fnhouse{position:absolute;z-index:7;pointer-events:none}
+.fnhouse svg,.fndoor svg{display:block;width:100%;height:100%;pointer-events:none}
+.fndoor{position:absolute;border:0;padding:0;background:none;cursor:pointer;z-index:9}
+.fnsky{position:absolute;left:0;right:0;top:0;border:0;padding:0;background:none;cursor:pointer;z-index:13}
+#map{position:absolute;inset:0;z-index:45;background:var(--space)}
+#map>svg{position:absolute;left:0;top:0;pointer-events:none}
+.mapdot{position:absolute;border:0;padding:0;border-radius:50%;cursor:pointer;display:grid;place-items:center;
+  background:radial-gradient(circle at 34% 30%,#fff 0,var(--mc) 45%,color-mix(in srgb,var(--mc) 45%,#000) 100%);
+  font:500 22px var(--font);color:#1b1e4a}
+.mapdot.done{box-shadow:0 0 0 4px #ffc53d,0 0 18px #ffc53d}
+.mapdot.next{animation:glow 1.1s ease-in-out infinite}
+.mapdot.locked{background:#2c2f4a;cursor:default}
+.mapdot.locked svg{width:50%;height:50%}
+.spr.mapeli{z-index:46}

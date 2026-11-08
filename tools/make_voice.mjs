@@ -98,6 +98,7 @@ function phrases(T) {                               // все фразы, кот
   add('eli', ...T.elIntro, T.elSafe, T.elFix, T.elLit, T.elSwitch, T.elOpen, ...T.elSnail, ...T.elWhy, T.elHouse, T.elWin);   // «Электричество»
   add('eli', ...T.peIntro, T.peTry, ...T.peResult, T.peMany, ...T.peManyNo, T.peTask, T.peWin);   // «Фотон выбивает Эли»
   add('eli', ...T.mgIntro, T.mgAlign, T.mgAligned, T.mgTest, T.mgTestEnd, ...T.mgCompass, T.mgDoor, T.mgAurora, T.mgWin);   // «Магниты»
+  add('eli', T.fnKnock, ...T.fnHello, T.fnRecap, T.fnParty, T.fnPromise, T.fnStay, T.mapWhere);   // «Эли пришёл в гости»
   for (const c of ['red', 'cyan', 'violet']) add('eli', T.s4ok(T.photons[c][1]));   // «летят два красных фотона»
   for (const m of [3, 4, 5]) for (const t of [3, 4, 5]) if (m !== t) add('eli', T.wrongStep(m, t));
   return out;

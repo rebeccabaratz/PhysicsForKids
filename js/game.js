@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции», #leaf — «Лист делает сахар», #elec — «Электричество», #photo — «Фотон выбивает Эли», #magnet — «Магниты»); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции», #leaf — «Лист делает сахар», #elec — «Электричество», #photo — «Фотон выбивает Эли», #magnet — «Магниты», #final — финал; #map — карта глав); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -242,6 +242,7 @@ let talk = null, sayText = '';
 function speaker() {
   if (phase === 'build' && BS) return $('#atomw');
   if (phase === 'atom' && eli) return eli;
+  if (phase === 'final' && FN) return FN.eli;
   if (phase === 'magnet' && MG) return MG.eli;
   if (phase === 'photo' && PE) return PE.eli;
   if (phase === 'elec' && EL) return EL.eli;
@@ -3028,13 +3029,114 @@ async function magnetScene() {
 }
 function mgRelayout() { if (MG) { setB(MG.eli, L.eli * 0.8); put(MG.eli, W * 0.88, H * 0.86); } }
 
+
+/* ===================== ФИНАЛ «ЭЛИ ПРИШЁЛ В ГОСТИ» ===================== */
+/* Тук-тук: ребёнок открывает дверь — Эли наконец пришёл. Короткое «спасибо», что искали его на всех работах;
+   праздник — ребёнок нажимает на небо, и там салют (цвета атомов из «Салюта»); «в следующий раз приду вовремя».
+   В этот раз Эли не исчезает — он остаётся. */
+const HOUSE = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M6 44 L50 8 L94 44 Z" fill="#ff8a3d"/><rect x="14" y="44" width="72" height="52" fill="#2c2f4a" stroke="#c9cfee" stroke-width="2"/>'
+  + '<rect x="20" y="52" width="18" height="16" fill="#ffe36b"/><rect x="62" y="52" width="18" height="16" fill="#ffe36b"/></svg>';
+let FN = null;
+async function finalScene() {
+  await flash();
+  clearStage();
+  phase = 'final'; setLabel(T.fnLabel);
+  FN = {};
+  FN.root = document.createElement('div'); FN.root.id = 'fn'; stage.appendChild(FN.root);
+  FX.cv = document.createElement('canvas'); FX.cv.id = 'ffx'; FN.root.appendChild(FX.cv);
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  FX.cv.width = W * dpr; FX.cv.height = H * dpr; FX.cv.style.width = W + 'px'; FX.cv.style.height = H + 'px';
+  FX.ctx = FX.cv.getContext('2d'); FX.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const hw = Math.min(W * 0.8, H * 0.45);
+  const house = document.createElement('div'); house.className = 'fnhouse'; house.innerHTML = HOUSE; FN.root.appendChild(house);
+  Object.assign(house.style, { left: W / 2 - hw / 2 + 'px', top: H * 0.92 - hw + 'px', width: hw + 'px', height: hw + 'px' });
+  const door = document.createElement('button'); door.type = 'button'; door.className = 'fndoor'; door.innerHTML = DOOR; FN.root.appendChild(door);
+  const dw = hw * 0.16, dh = hw * 0.3;
+  Object.assign(door.style, { left: W / 2 - dw / 2 + 'px', top: H * 0.92 - dh - hw * 0.04 + 'px', width: dw + 'px', height: dh + 'px' });
+  FN.eli = sprite('eli_hello', 'front'); FN.eli.addEventListener('click', () => talkTap()); FN.eli.style.opacity = 0;
+  setB(FN.eli, L.eli * 1.1); put(FN.eli, W / 2, H * 0.92 - L.eli * 0.6);
+  await unflash();
+  sfx('tick'); sfx('tick', 220);                   // тук-тук
+  await say(T.fnKnock, { next: false }); hideSay();
+  await tapObj(door);
+  door.style.transformOrigin = 'left center';      // дверь открывается
+  door.animate([{ transform: 'scaleX(1)' }, { transform: 'scaleX(.1)' }], { duration: 400 * K, fill: 'forwards' });
+  sfx('fanfare');
+  await go(FN.eli, { opacity: 1, ms: 400 });
+  FN.eli.src = 'img/eli_jump.webp'; await go(FN.eli, { y: H * 0.5, k: 1.3, ms: 700, easing: 'cubic-bezier(.3,1.4,.5,1)' }); FN.eli.src = 'img/eli_hello.webp';
+  for (const t of T.fnHello) await say(t);
+  await say(T.fnRecap);
+  await say(T.fnParty, { next: false }); hideSay();
+  const cols = Object.values(FLAME);
+  await new Promise(res => {                       // салют там, где нажали на небо
+    let n = 0; const sky = document.createElement('button'); sky.type = 'button'; sky.className = 'fnsky'; FN.root.appendChild(sky);
+    sky.style.height = H * 0.42 + 'px';
+    sky.onclick = e => {
+      const r = stage.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      sfx('boom'); burst(x, y, [cols[n % cols.length], cols[(n + 2) % cols.length]]);
+      if (++n >= 6) { sky.remove(); setTimeout(res, 1500); }
+    };
+  });
+  FN.eli.src = 'img/eli_medal.webp';
+  await say(T.fnPromise);
+  await say(T.fnStay);
+  hideSay();
+  for (let i = 0; i < 8; i++) { sfx('boom'); burst(W * (0.15 + Math.random() * 0.7), H * (0.12 + Math.random() * 0.25), [cols[i % cols.length], cols[(i + 1) % cols.length]]); await wait(400); }
+  await wait(2500);
+}
+
+function fnRelayout() {}
+
+/* ===================== КАРТА ГЛАВ ===================== */
+/* Часть 1 (яблоко → атом → «Эли и свет») идёт подряд; дальше после каждой главы — карта: «Где Эли теперь?».
+   Глава открыта, если пройдена предыдущая; пройденные светятся золотом, следующая мигает, дальние — с замочком.
+   Взрослым: долгое нажатие (1,5 с) на карту открывает все главы (помнится в браузере). */
+const CHAPTERS = [
+  { first: 'apple', last: 'eli5', c: '#ff4a5a' }, { first: 'fire', c: '#ffc21a' }, { first: 'rainbow', c: '#3fdcff' },
+  { first: 'color', c: '#ff8a3d' }, { first: 'uv', c: '#b48cff' }, { first: 'sky', c: '#5dff8a' }, { first: 'chem', c: '#f3f5ff' },
+  { first: 'react', c: '#ff4f8b' }, { first: 'leaf', c: '#3fbf55' }, { first: 'elec', c: '#ffb02e' }, { first: 'photo', c: '#7a5cff' },
+  { first: 'magnet', c: '#ff4a4a' }, { first: 'final', c: '#ffe36b' },
+].map(ch => ({ ...ch, last: ch.last || ch.first }));
+const chapterOf = s => CHAPTERS.find(ch => SCENES.indexOf(s) >= SCENES.indexOf(ch.first) && SCENES.indexOf(s) <= SCENES.indexOf(ch.last));
+function goMap() { location.hash = LANG + '-map'; location.reload(); }
+function showMap() {
+  const st = $('#start'); if (st) st.remove();
+  measure(); phase = 'map'; hideSay();
+  let all = false; try { all = localStorage.getItem('eliAll') === '1'; } catch (e) {}
+  const done = ch => DONE.has(ch.last);
+  const open = (ch, i) => all || i === 0 || done(ch) || done(CHAPTERS[i - 1]);
+  const next = CHAPTERS.findIndex((ch, i) => open(ch, i) && !done(ch));
+  const m = document.createElement('div'); m.id = 'map'; stage.appendChild(m);
+  const n = CHAPTERS.length, cols = 3, rows = Math.ceil(n / cols), d = Math.min(W * 0.2, (H * 0.74) / rows * 0.7, 76);
+  const pos = i => { const r = Math.floor(i / cols), c = r % 2 ? cols - 1 - i % cols : i % cols;   // змейка
+    return [W * (LANG === 'he' ? 0.8 - c * 0.3 : 0.2 + c * 0.3), H * 0.16 + (r + 0.5) * (H * 0.76 / rows)]; };   // на иврите — справа налево
+  let path = ''; for (let i = 0; i < n; i++) { const [x, y] = pos(i); path += (i ? ' L' : 'M') + x + ' ' + y; }
+  m.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><path d="${path}" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="6" stroke-dasharray="2 12" stroke-linecap="round"/></svg>`;
+  CHAPTERS.forEach((ch, i) => {
+    const [x, y] = pos(i), b = document.createElement('button'); b.type = 'button';
+    b.className = 'mapdot' + (done(ch) ? ' done' : '') + (open(ch, i) ? '' : ' locked') + (i === next ? ' next' : '');
+    b.style.setProperty('--mc', ch.c);
+    Object.assign(b.style, { left: x - d / 2 + 'px', top: y - d / 2 + 'px', width: d + 'px', height: d + 'px' });
+    b.innerHTML = open(ch, i) ? `<span>${i + 1}</span>` : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="#c9cfee"/><path d="M8 11 V8 a4 4 0 0 1 8 0 V11" fill="none" stroke="#c9cfee" stroke-width="2.4"/></svg>';
+    b.setAttribute('aria-label', String(i + 1));
+    if (open(ch, i)) b.onclick = () => { sfx('tap'); m.remove(); if (ch.first === 'apple') resetBarcode(); runFrom(ch.first); };
+    m.appendChild(b);
+  });
+  if (next >= 0) {                                 // Эли ждёт у следующей главы
+    const [x, y] = pos(next), e = sprite('eli_hello', 'front mapeli'); setB(e, d * 0.8); put(e, x + d * 0.55, y - d * 0.45);
+  }
+  let t = 0; m.addEventListener('pointerdown', () => { t = setTimeout(() => { try { localStorage.setItem('eliAll', '1'); } catch (e) {} m.remove(); document.querySelectorAll('.mapeli').forEach(x => x.remove()); showMap(); }, 1500); });
+  m.addEventListener('pointerup', () => clearTimeout(t)); m.addEventListener('pointerleave', () => clearTimeout(t));
+  if (soundOn()) setTimeout(() => say(T.mapWhere, { next: false }).then(() => { if (phase === 'map') hideSay(); }), 500);
+}
+
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
    ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react', 'leaf', 'elec', 'photo', 'magnet'];
-const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene, leaf: leafScene, elec: elecScene, photo: photoScene, magnet: magnetScene };
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react', 'leaf', 'elec', 'photo', 'magnet', 'final'];
+const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene, leaf: leafScene, elec: elecScene, photo: photoScene, magnet: magnetScene, final: finalScene };
 let cur = -1;
 const DONE = new Set();
 try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(x)); } catch (e) {}
@@ -3052,9 +3154,10 @@ async function runFrom(name) {
     await SCENE_FN[SCENES[i]]();
     markDone(SCENES[i]);
     try { localStorage.setItem('eliNext', SCENES[i + 1] || ''); } catch (e) {}
+    const ch = chapterOf(SCENES[i]);
+    if (ch && ch.last === SCENES[i]) { if (ch.first === 'final') goScene(-1); else goMap(); return; }   // глава пройдена — на карту
   }
-  try { localStorage.removeItem('eliNext'); } catch (e) {}
-  goScene(-1);                                    // последняя глава пройдена — на стартовый экран
+  goScene(-1);
 }
 
 /* ===================== СТАРТ ===================== */
@@ -3070,6 +3173,8 @@ function relayout() {
   if (phase === 'atom') { const h = !!hopAnim; buildAtom(); if (h) hop(true); }
   if (phase === 'build' && BS) { layoutBuild(); syncBins(); renderAtom(); }
   if (phase === 'fire') layoutFire();
+  if (phase === 'map') { const m = $('#map'); if (m) m.remove(); document.querySelectorAll('.mapeli').forEach(x => x.remove()); showMap(); }
+  if (phase === 'final') fnRelayout();
   if (phase === 'magnet') mgRelayout();
   if (phase === 'photo') peLayout();
   if (phase === 'elec') elRelayout();
@@ -3126,8 +3231,10 @@ if (SCENES.includes(startHash)) {
   ['#snote', '#skip', '#skip2', '#langs', '#sbadge', '#cont'].forEach(q => { $(q).hidden = true; });
 }
 preloadVoices(LANG);
+if (startHash === 'map') { $('#start').hidden = true; }
 preload().then(async () => {
   const play = $('#play'); play.disabled = false; play.textContent = T.play;
+  if (startHash === 'map') { unlockAudio(); showMap(); return; }
   if (SCENES.includes(startHash)) {
     unlockAudio(); await new Promise(r => setTimeout(r, 300));
     if (soundOn()) { runFrom(startHash); return; }
@@ -3138,8 +3245,8 @@ preload().then(async () => {
   const fresh = scene => () => { resetBarcode(); runFrom(scene); };   // новая игра: штрихкод заполняется заново
   play.onclick = fresh(P.START === 'atom' ? 'eli1' : 'apple');   // «Играть» — всегда с начала
   let next = ''; try { next = localStorage.getItem('eliNext') || ''; } catch (e) {}
-  if (SCENES.includes(next)) {                     // игра уже начата — «Продолжить» с того места, где остановились
-    const cont = $('#cont'); cont.hidden = false; cont.onclick = () => runFrom(next);
+  if (DONE.size || SCENES.includes(next)) {       // игра уже начата — «Продолжить»: карта глав
+    const cont = $('#cont'); cont.hidden = false; cont.onclick = showMap;
   }
   $('#skip').onclick = fresh('build');
   $('#skip2').onclick = fresh('eli1');
