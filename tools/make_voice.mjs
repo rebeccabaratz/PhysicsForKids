@@ -134,7 +134,7 @@ function problem(file, text) {
 /* ---------- основной проход ---------- */
 const argv = process.argv.slice(2), opt = name => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : null; };
 const TAKES = opt('--takes'), PICK = opt('--pick'), PIN = opt('--pin'), COUNT = Number(opt('--count') || 3);
-const langs = argv.filter(a => /^(he|ru)$/.test(a)).length ? argv.filter(a => /^(he|ru)$/.test(a)) : ['he', 'ru'];
+const langs = argv.filter(a => /^(he|ru)$/.test(a)).length ? argv.filter(a => /^(he|ru)$/.test(a)) : ['he'];   // пока только иврит; русский — node tools/make_voice.mjs ru
 async function synth(lang, said, voice, file) {     // озвучить с проверкой на брак (до TRIES попыток)
   for (let i = 1; i <= TRIES; i++) {
     fs.writeFileSync(file, lang === 'he' ? await googleTts(said, voice) : await sileroTts(said, voice));

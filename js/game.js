@@ -40,7 +40,7 @@
     MOUTH_OPEN, MOUTH_BLOW — положение рта на картинках Эли (доли картинки)
     SPEED          — общая скорость анимаций (1 = обычная, 2 = вдвое быстрее)
     START          — с чего начинать: 'apple' или 'atom'
-    (язык: иврит по умолчанию; кнопки «עברית / Русский» на стартовом экране; адрес #ru или #he)
+    (язык: пока только иврит — RU_ON = false в блоке «ЯЗЫК»; с RU_ON = true — кнопки «עברית / Русский» и адрес #ru)
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
@@ -109,11 +109,14 @@ const P = {
 
 /* ===================== ЯЗЫК (тексты — в js/texts.js) ===================== */
 /* По умолчанию — иврит. Адрес #ru / #ru-<сцена> — русский, #he / #he-<сцена> — иврит.
-   Выбор на стартовом экране запоминается в этом браузере. */
+   Выбор на стартовом экране запоминается в этом браузере.
+   RU_ON = false — пока только иврит: русская кнопка спрятана, #ru открывает иврит (русские тексты оставлены на потом). */
+const RU_ON = false;
 let LANG = 'he';
 try { LANG = localStorage.getItem('eliLang') || 'he'; } catch (e) {}
 const HASH0 = location.hash.slice(1), HM = HASH0.match(/^(ru|he)(?:-(.*))?$/);
 if (HM) LANG = HM[1];
+if (!RU_ON) LANG = 'he';
 const HASH_SCENE = HM ? (HM[2] || '') : HASH0;
 document.documentElement.dir = LANG === 'he' ? 'rtl' : 'ltr';
 document.documentElement.lang = LANG;
@@ -1314,6 +1317,7 @@ document.querySelectorAll('.lang').forEach(b => {
     location.hash = b.dataset.l; location.reload();
   };
 });
+if (!RU_ON) $('#langs').hidden = true;
 updNav();
 const startHash = HASH_SCENE;
 try { $('#sbadge').hidden = localStorage.getItem('eliBadge') !== '1'; } catch (e) {}
