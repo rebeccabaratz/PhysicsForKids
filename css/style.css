@@ -312,3 +312,24 @@ button.uvitem{cursor:pointer}
   display:flex;flex-direction:column;padding:6px;gap:2px;box-sizing:border-box}
 .sksample i{display:block;border-radius:4px}
 @media (prefers-reduced-motion:reduce){#skysvg .skyc,.skhit.call{animation:none}}
+
+/* глава «Вещества» */
+#chem{position:absolute;inset:0;z-index:6}
+#chsvg{position:absolute;left:0;top:0;pointer-events:none;z-index:7}
+.chatom{position:absolute;border-radius:50%;z-index:9;pointer-events:none;
+  background:radial-gradient(circle at 34% 30%,#fff 0,var(--bc) 45%,color-mix(in srgb,var(--bc) 45%,#000) 100%);
+  box-shadow:0 0 14px color-mix(in srgb,var(--bc) 50%,transparent)}
+.chatom .face{position:absolute;inset:0;width:100%;height:100%}
+.chatom .ve{position:absolute;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:#3fdcff;box-shadow:0 0 6px #3fdcff}
+.ve.fly{position:absolute;left:0;top:0;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;background:#3fdcff;box-shadow:0 0 10px #3fdcff;z-index:12}
+.chq{position:absolute;right:-8px;top:-12px;font:500 24px var(--font);color:#fff;text-shadow:0 0 6px #000}
+.chbin{position:absolute;border:0;padding:0;background:rgba(255,255,255,.07);border-radius:50%;cursor:pointer;z-index:8}
+.chbin .chatom{inset:14%}
+.chrecipe{position:absolute;z-index:9;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;padding:10px;
+  border:3px solid rgba(255,255,255,.55);border-radius:14px;background:rgba(5,6,25,.6);box-sizing:border-box}
+.chr{display:block;border-radius:50%;transition:opacity .3s;
+  background:radial-gradient(circle at 34% 30%,#fff 0,var(--bc) 45%,color-mix(in srgb,var(--bc) 45%,#000) 100%)}
+.chr.got{opacity:.22}
+.chcard{position:absolute;z-index:9;pointer-events:none}
+.chcard svg{display:block;width:100%;height:100%}
+@media (prefers-reduced-motion:reduce){.chr{transition:none}}
