@@ -525,7 +525,7 @@ const CS = {
 function csfx(name) { const c = auCtx(); if (!c) return; try { CS[name](c.currentTime + 0.01); } catch (e) {} }
 
 /* ===================== СЦЕНА ===================== */
-const Z = {};                                     // состояние главы: root, svg, eli, redraw, binHandler
+const Z = {};                                     // состояние главы: root, svg, eli, redraw, q (очередь нажатий), accept
 let svg = null, LY = {};
 const layer = {};
 function layout() {
@@ -558,7 +558,12 @@ function shakeBin(k) {
   const base = g.getAttribute('transform');
   tween(0.45, q => g.setAttribute('transform', base + ` rotate(${Math.sin(q * Math.PI * 4) * 14 * (1 - q)})`));
 }
-const waitBin = () => new Promise(res => { Z.binHandler = k => { Z.binHandler = null; binsOn(false); res(k); }; binsOn(true); });
+/* нажатия ребёнка — в очередь (Z.q): пока атом летит на стол или Эли подпрыгивает, нажатие не теряется, а ждёт своей очереди.
+   Z.accept — слушаем ли сейчас (во время объяснений Эли — нет). Действия: {k} — атом из корзинки, {remove: i} — атом со стола, {check} — нажали на Эли */
+function push(a) { if (!Z.accept) return; Z.q.push(a); if (Z.wake) Z.wake(); }
+const nextAct = () => Z.q.length ? Promise.resolve(Z.q.shift()) : new Promise(r => { Z.wake = () => { Z.wake = null; r(Z.q.shift()); }; });
+function listen(on) { Z.accept = on; Z.q = []; binsOn(on); }
+async function waitBin() { for (;;) { const a = await nextAct(); if (a.k) return a.k; } }
 function placeEli() { setB(Z.eli, L.eli * 0.8); put(Z.eli, W * 0.88, LY.binY - 6, Z.eli._k ?? 1); }   // справа в ряду корзинок — не заслоняет вещество
 
 async function flyToTable(k, nx, ny) {             // атом летит из корзинки на своё место на столе
@@ -579,18 +584,20 @@ async function recipe(id, key, first) {
   await say(T.chMake[id], { next: false });
   if (first) { await say(T.chHow, { next: false }); showText(T.chMake[id]); }
   let wrongSaid = false;
+  listen(true);
   while (placed.includes(false)) {
     const k = await waitBin();
     const j = list.findIndex((kk, i) => kk === k && !placed[i]);
     if (j < 0) {                                   // такой атом сейчас не нужен — корзинка мотает головой
       sfx('oops'); shakeBin(k);
-      if (!wrongSaid) { wrongSaid = true; await say(T.chWrong, { next: false }); showText(T.chMake[id]); }
+      if (!wrongSaid) { wrongSaid = true; Z.accept = false; await say(T.chWrong, { next: false }); showText(T.chMake[id]); Z.accept = true; }
       continue;
     }
     placed[j] = true; sfx('tap'); playVoice(T.chNames[k] + '.', true); drawCard(list, placed);
     await flyToTable(k, M.A[j].sx, M.A[j].sy);
     vis.add(j); drawTable(drawMol(M, ST0, vis));
   }
+  listen(false);
   hideSay(); await wait(300);
   const fin = { ...ST0, pull: 1, sign: M.hasIon ? 1 : 0, fly: 1, reach: 1, join: 1 };
   Z.redraw = null;                                 // пока идёт анимация, поворот экрана её не трогает
@@ -713,23 +720,21 @@ async function freeMode() {
   redraw();
   for (const t of T.chFreeIntro) await say(t);
   hideSay();
+  listen(true);
   while (newFound < FREE_GOAL) {
     eliCall(table.length > 0);
-    const act = await new Promise(res => {
-      Z.binHandler = k => res({ k }); Z.looseHandler = i => res({ remove: i }); Z.eliHandler = () => res({ check: true }); binsOn(true);
-      // атомы на столе, а дети ничего не делают 6 с — Эли напоминает: «когда готовы — нажмите на меня»
-      if (table.length) Z.remind = setTimeout(() => { if (Z.eliHandler) { bounce(Z.eli, 1.15, 0.9); say(T.chFreeTap, { next: false }); } }, 6000 * K);
-    });
+    // атомы на столе, а дети ничего не делают 3 с — Эли напоминает: «когда готовы — нажмите на меня»
+    if (table.length && !Z.q.length) Z.remind = setTimeout(() => { if (Z.accept && !Z.q.length) { bounce(Z.eli, 1.15, 0.9); say(T.chFreeTap, { next: false }); } }, 3000 * K);
+    const act = await nextAct();
     clearTimeout(Z.remind);
-    Z.binHandler = Z.looseHandler = Z.eliHandler = null; binsOn(false);
     if (act.k) {                                   // взять атом из корзинки
       if (table.length >= MAX_FREE) { sfx('oops'); shakeBin(act.k); await say(T.chFreeFull, { next: false }); continue; }
       sfx('tap'); playVoice(T.chNames[act.k] + '.', true); fitTable(box);
       await flyToTable(act.k, ...LOOSE[table.length]); table.push(act.k); redraw(); continue;
     }
-    if (act.remove != null) { sfx('pop'); table.splice(act.remove, 1); redraw(); continue; }   // атом со стола — обратно в корзинку
-    eliCall(false);                                // проверка
-    if (!table.length) { await say(T.chFreeEmpty, { next: false }); continue; }
+    if (act.remove != null) { if (act.remove < table.length) { sfx('pop'); table.splice(act.remove, 1); redraw(); } continue; }   // атом со стола — обратно в корзинку
+    eliCall(false); listen(false);                 // проверка: пока Эли объясняет, нажатия не слушаем
+    if (!table.length) { await say(T.chFreeEmpty, { next: false }); listen(true); continue; }
     const res = judge(table);
     if (!res.ok) {
       sfx('oops'); if (res.k) shakeLoose(table, res.k);
@@ -738,7 +743,7 @@ async function freeMode() {
         const left = SHELF.filter(k => !found.has(k)); hint = left[Math.floor(Math.random() * left.length)]; fails = 0;
         redraw(); sfx('sparkle'); await say(T.chFreeHint, { next: false });
       }
-      continue;
+      listen(true); continue;
     }
     // получилось: атомы встают по местам вещества — и связываются
     fails = 0; Z.redraw = null;
@@ -756,9 +761,9 @@ async function freeMode() {
     }
     hideSay();
     await tween(0.4, q => drawTable(drawMol(M, fin), 1 - q));
-    table.length = 0; Z.redraw = () => redraw(); redraw();
+    table.length = 0; Z.redraw = () => redraw(); redraw(); listen(true);
   }
-  eliCall(false); Z.redraw = null;
+  listen(false); eliCall(false); Z.redraw = null;
 }
 
 async function scene() {
@@ -766,13 +771,14 @@ async function scene() {
   clearStage();
   phase = 'chem'; setLabel(T.chLabel);
   for (const k of Object.keys(Z)) delete Z[k];
+  Z.q = []; Z.accept = false;
   Z.root = document.createElement('div'); Z.root.id = 'chem'; stage.appendChild(Z.root);
   svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.id = 'chsvg'; Z.root.appendChild(svg);
   svg.addEventListener('pointerdown', e => {
-    const b = e.target.closest('[data-bin]'); if (b && Z.binHandler) { Z.binHandler(b.dataset.bin); return; }
-    const l = e.target.closest('[data-loose]'); if (l && Z.looseHandler) Z.looseHandler(+l.dataset.loose);
+    const b = e.target.closest('[data-bin]'); if (b) { push({ k: b.dataset.bin }); return; }
+    const l = e.target.closest('[data-loose]'); if (l && Z.mode === 'free') push({ remove: +l.dataset.loose });
   });
-  Z.eli = sprite('eli_hello', 'front'); Z.eli.addEventListener('click', () => { if (!talkTap() && Z.eliHandler) Z.eliHandler(); });
+  Z.eli = sprite('eli_hello', 'front'); Z.eli.addEventListener('click', () => { if (!talkTap() && Z.mode === 'free') push({ check: true }); });
   layout(); initSvg(); drawBins(); placeEli();
   await unflash();
   for (const t of T.chIntro) await say(t);
