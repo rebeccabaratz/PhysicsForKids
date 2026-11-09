@@ -34,7 +34,7 @@
     CHEW_TIMES     — сколько раз рожица жуёт (2)
     LASER_ATOMS    — мини-игра «Лазер» (этап 4): сколько маленьких Эли (5)
     LASER_MS       — мини-игра «Лазер»: за сколько мс строй фотонов пролетает ширину экрана (3500)
-    SHOW_TEXT      — показывать ли фразы текстом вверху (false: только голос; true — для взрослых/отладки)
+    SHOW_TEXT      — показывать ли фразы текстом вверху (false: только голос; true — для взрослых/отладки; ?text в адресе включает его, фразы по-русски)
     PLANET_MS      — сколько вращается и наклоняется планетарный атом, мс (4500)
     RING_SIZES     — радиусы колец 1–5 в планетарном атоме, доля самого большого
     MOUTH_OPEN, MOUTH_BLOW — положение рта на картинках Эли (доли картинки)
@@ -122,6 +122,13 @@ document.documentElement.dir = LANG === 'he' ? 'rtl' : 'ltr';
 document.documentElement.lang = LANG;
 
 const T = LANG === 'he' ? T_HE : T_RU;
+// ?text в адресе — для взрослых без звука: фраза видна вверху, по-русски (если есть русский вариант), иначе на иврите
+if (/[?&]text\b/.test(location.search)) P.SHOW_TEXT = true;
+const RU_OF = new Map();                          // ивритская фраза → русская (одинаковые ключи в T_HE и T_RU)
+(function pair(h, r) {
+  if (typeof h === 'string' && typeof r === 'string') { RU_OF.set(h, r); return; }
+  if (h && r && typeof h === 'object' && typeof r === 'object') for (const k of Object.keys(h)) pair(h[k], r[k]);
+})(T_HE, T_RU);
 
 function plural(n, one, few, many) {            // русское согласование: 1 разрез, 2 разреза, 5 разрезов
   const a = n % 10, b = n % 100;
@@ -270,7 +277,8 @@ function talkTap(auto = false) {
 }
 function say(text, o = {}) {
   endTalk();
-  $('#btext').textContent = sayText = text; $('#replay').hidden = false;
+  sayText = text; $('#replay').hidden = false;
+  $('#btext').textContent = LANG === 'he' && P.SHOW_TEXT && RU_OF.has(text) ? RU_OF.get(text) : text;
   if (!(o.next ?? true)) return playVoice(text).then(() => {});
   const sp = speaker();
   return new Promise(r => {
@@ -289,7 +297,7 @@ function voiceThenGo(t, interrupt = false) {      // озвучить текущ
     if (!P.SHOW_TEXT) wait(Math.max(2500, sayText.length * 70)).then(() => { if (talk === t) talkTap(true); });
   });
 }
-function hideSay() { endTalk(); $('#btext').textContent = sayText = ''; $('#replay').hidden = true; }
+function hideSay() { endTalk(); sayText = ''; if (!P.SHOW_TEXT) $('#btext').textContent = ''; $('#replay').hidden = true; }   // ?text — фраза-задание видна до следующей
 const tapOn = el => new Promise(r => el.addEventListener('click', () => r(), { once: true }));
 let FLASHED = false;
 async function flash() {

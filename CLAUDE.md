@@ -57,7 +57,7 @@
   и заголовок-описание (добавил параметр — допиши в заголовок).
 - Сцены: `SCENES = ['apple','build','eli1'…'eli5','fire','chem','react','rainbow','color','uv','sky','leaf','elec','photo','magnet','final']`, адрес `#he-eli3`, `#he-fire`.
   Новая глава: функция сцены (начинается с `clearStage()`, кончается `eliVanish(...)`), добавить в `SCENES` и `SCENE_FN`,
-  её фразы — в `phrases()` в `tools/make_voice.mjs`. Проверять без звука: `/?mute#he-<сцена>`.
+  её фразы — в `phrases()` в `tools/make_voice.mjs`. Проверять без звука: `/?mute#he-<сцена>`; `/?mute&text` — ещё и фразы текстом (по-русски).
 - Хранение в браузере (`localStorage`, всегда в try/catch): `eliLang`, `eliDone`, `eliNext`, `eliBadge`, `eliBarcode`.
 - RTL: на иврите `dir="rtl"`; каждому `position:absolute` элементу задавать явные `left`/`top`.
 - Физика Эли: уровни водорода `EN(n) = −13,6/n²` эВ; фотоны УФ 10,2 (1→2), красный 656 нм (2→3),
