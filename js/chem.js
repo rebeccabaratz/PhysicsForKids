@@ -334,7 +334,7 @@ function drawMol(M, st, vis, over) {              // over — позиции а�
       ar += wrap(b.a, arm(D0.x, D0.y, dn.r, lerp(side > 0 ? 35 : 145, angOf(ux, uy) / D, st.wOut) * D, w[0], w[1], -0.2 * side, false));
       gl += wrap(b.a, glove(w[0], w[1], hang, side > 0 ? 0 : -1)); handsOf[b.a]++;
       if (st.fly <= 0) el += wrap(b.a, electron(...palm(w[0], w[1], hang)));
-      else {                                         // электрон летит дугой на пустое место у соседа
+      else if (st.fly < 1) {                         // электрон летит дугой на пустое место у соседа (прилетел — его рисует сосед: иначе при наклоне видно два)
         const from = palm(out[0], out[1], angOf(ux, uy) - 0.3 * side), ctrl = [(from[0] + target[0]) / 2, Math.min(from[1], target[1]) - 130], q = st.fly;
         tp += electron((1 - q) ** 2 * from[0] + 2 * (1 - q) * q * ctrl[0] + q * q * target[0], (1 - q) ** 2 * from[1] + 2 * (1 - q) * q * ctrl[1] + q * q * target[1]);
       }
