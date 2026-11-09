@@ -15,7 +15,7 @@
    ионов (здесь одна «пара»); молекулы показаны плоскими; правило «полное кольцо» (октет) — упрощение, верное для этих веществ. */
 const CHEM = (() => {
 const G = { SPREAD: 1.5,                          // насколько раздвинуты атомы до связи (1 — уже стоят вместе)
-  BOND: 32, ION: 14 };                            // промежуток между атомами (px рисунка): за руки / «+» и «−» (решение автора 2026-11-09:
+  BOND: 32, ION: 40 };                            // промежуток между атомами (px рисунка): за руки / «+» и «−» (решение автора 2026-11-09:
                                                   // ручки короче, чтобы вода выглядела привычно; в пробах чата было 72 и 52)
 
 /* ---------- атомы: тело, лицо, ручки, ножки, электроны (из atoms-svg/lib.js) ---------- */
@@ -717,7 +717,10 @@ async function freeMode() {
     eliCall(table.length > 0);
     const act = await new Promise(res => {
       Z.binHandler = k => res({ k }); Z.looseHandler = i => res({ remove: i }); Z.eliHandler = () => res({ check: true }); binsOn(true);
+      // атомы на столе, а дети ничего не делают 6 с — Эли напоминает: «когда готовы — нажмите на меня»
+      if (table.length) Z.remind = setTimeout(() => { if (Z.eliHandler) { bounce(Z.eli, 1.15, 0.9); say(T.chFreeTap, { next: false }); } }, 6000 * K);
     });
+    clearTimeout(Z.remind);
     Z.binHandler = Z.looseHandler = Z.eliHandler = null; binsOn(false);
     if (act.k) {                                   // взять атом из корзинки
       if (table.length >= MAX_FREE) { sfx('oops'); shakeBin(act.k); await say(T.chFreeFull, { next: false }); continue; }
