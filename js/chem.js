@@ -3,6 +3,7 @@
    решения автора 2026-11-09 — в README того репозитория. Здесь они подключены к игре: фразы — say() игры
    (пока текстом; озвучка — в конце), Эли — спрайт игры, кнопки ◀ ▶ и карта — как в других главах.
    Всё внутри CHEM, чтобы имена (ring, slot, badge, SFX, P) не путались с именами игры.
+   Глава: 6 веществ по картинке → свободный режим «Что получится?» с полкой веществ.
    Наружу: CHEM.scene() — сцена главы, CHEM.relayout(), CHEM.eli() — говорящий (для speaker()).
 
    Атомы: внешние электроны H 1, C 4, O 6, Na 1, Cl 7; рук — столько, сколько связей (H 1, O 2, C 4, Cl 1).
@@ -422,7 +423,7 @@ function drawStars(n) {
   layer.card.innerHTML = s;
 }
 function showIcon(key, on) {                       // большая карточка вещества над столом
-  layer.fx.innerHTML = on && ICON[key] ? `<g transform="translate(${W / 2 - 40} ${LY.cardY - 4}) scale(.8)"><rect x="-6" y="-6" width="112" height="112" rx="18" fill="rgba(13,16,51,.8)" stroke="rgba(255,212,90,.6)"/><svg width="100" height="100" viewBox="0 0 100 100">${ICON[key]}</svg></g>` : '';
+  layer.fx.innerHTML = on && ICON[key] ? `<g transform="translate(${W / 2 - 40} ${Z.mode === 'free' ? LY.shelfY : LY.cardY - 4}) scale(.8)"><rect x="-6" y="-6" width="112" height="112" rx="18" fill="rgba(13,16,51,.8)" stroke="rgba(255,212,90,.6)"/><svg width="100" height="100" viewBox="0 0 100 100">${ICON[key]}</svg></g>` : '';
 }
 
 /* ===================== СВЯЗЬ: вся анимация вещества ===================== */
@@ -519,10 +520,12 @@ let svg = null, LY = {};
 const layer = {};
 function layout() {
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
-  LY = { cardY: 100, cardH: 56, tblTop: 172, tblBot: H - 150, binY: H - 62, binR: Math.min(27, W / 14) };
+  LY = { cardY: 100, cardH: 56, tblTop: 172, tblBot: H - 150, binY: H - 62, binR: Math.min(27, W / 14), shelfY: 92 };   // полка — ниже фразы (она бывает в две строки)
+  if (Z.mode === 'free') LY.tblTop = LY.shelfY + 2 * (shelfD() + 4) + 56;   // свободный режим: сверху полка (и место для подсказки)
 }
 function initSvg() {
   svg.innerHTML = ''; defs(svg);
+  svg.insertAdjacentHTML('afterbegin', '<defs><filter id="sil"><feColorMatrix type="matrix" values="0 0 0 0 .8  0 0 0 0 .83  0 0 0 0 .95  0 0 0 .3 0"/></filter></defs>');   // силуэт на полке
   svg.insertAdjacentHTML('beforeend', '<g id="tbl"></g><g id="obj"></g><g id="card"></g><g id="bins"></g><g id="fx"></g>');
   for (const id of ['tbl', 'obj', 'card', 'bins', 'fx']) layer[id] = svg.querySelector('#' + id);
 }
@@ -587,6 +590,162 @@ async function recipe(id, key, first) {
   await tween(0.4, q => drawTable(drawMol(M, fin), 1 - q));
 }
 
+/* ===================== СВОБОДНЫЙ РЕЖИМ «ЧТО ПОЛУЧИТСЯ?» =====================
+   Задание чата specs/chem-free-mode.md (идея автора): дети сами кладут на стол до 5 атомов и нажимают на Эли.
+   Вещество получается, когда у каждого атома полное внешнее кольцо (H — 2 электрона, остальные — 8); связей нужно
+   H 1, Cl 1, O 2, C 4; натрий отдаёт электрон тому, кто возьмёт (Cl, O, H). Проверяем по СПИСКУ (FREE_MAP):
+   правило «разрешает» и вещества с трудным именем («такое вещество есть»), а озон и угарный газ им не объясняются.
+   Что на самом деле: O₃ и CO существуют, но правилом полных колец не описываются (заряды на атомах / тройная связь) —
+   они в списке как исключения, без рук; Na + Na — кусочек металла (электроны общие у всех атомов), пара Na₂ почти не встречается.
+   Полка: все вещества, которые можно найти (до 5 атомов); найденные — цветные, остальные — силуэты.
+   Четыре вещества из рецептов уже стоят на полке. Цель — найти FREE_GOAL новых.
+   Подсказка: после 3 неудач подряд под полкой появляются атомы одного ненайденного вещества, его место мигает.
+   Знак опасности (красный треугольник) — у хлора, угарного газа и едкого натра. */
+const FREE_GOAL = 3, MAX_FREE = 5;
+Object.assign(ICON, {
+  H2: '<path d="M50 70 Q48 84 54 96" stroke="#c9cfee" stroke-width="2" fill="none"/><ellipse cx="50" cy="38" rx="26" ry="31" fill="#bfe6ff"/><path d="M45 68 L55 68 L50 74 Z" fill="#bfe6ff"/><ellipse cx="40" cy="27" rx="7" ry="10" fill="#fff" opacity=".7"/>',
+  O2: '<path d="M50 10 V42 M50 42 Q42 44 40 52 M50 42 Q58 44 60 52" stroke="#ff9ab0" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M38 40 Q16 44 16 72 Q16 90 32 90 Q42 90 42 76 V52 Q42 42 38 40 Z" fill="#ff7a9a"/><path d="M62 40 Q84 44 84 72 Q84 90 68 90 Q58 90 58 76 V52 Q58 42 62 40 Z" fill="#ff7a9a"/>',
+  Cl2: '<path d="M22 70 Q8 70 10 56 Q12 44 26 46 Q28 28 46 30 Q60 18 72 34 Q90 32 88 50 Q96 64 82 70 Z" fill="#c8e86a" opacity=".9"/>',
+  CO2: '<circle cx="34" cy="70" r="14" fill="none" stroke="#9fd8ff" stroke-width="4"/><circle cx="62" cy="48" r="11" fill="none" stroke="#9fd8ff" stroke-width="4"/><circle cx="44" cy="30" r="8" fill="none" stroke="#9fd8ff" stroke-width="4"/><circle cx="72" cy="80" r="7" fill="none" stroke="#9fd8ff" stroke-width="4"/>',
+  CH4: '<rect x="16" y="80" width="68" height="12" rx="5" fill="#6b7088"/><path d="M28 78 Q30 50 40 64 Q44 34 50 58 Q56 34 60 64 Q70 50 72 78 Z" fill="#4fb6ff"/><path d="M40 78 Q44 64 50 70 Q56 64 60 78 Z" fill="#bfe6ff"/>',
+  H2O2: '<rect x="40" y="8" width="20" height="12" rx="3" fill="#f3f5ff"/><path d="M36 20 H64 Q76 28 76 42 V86 Q76 92 70 92 H30 Q24 92 24 86 V42 Q24 28 36 20 Z" fill="#7a4a24"/><rect x="32" y="48" width="36" height="26" rx="4" fill="#f3f5ff"/><path d="M50 52 V70 M41 61 H59" stroke="#ff4a4a" stroke-width="5"/>',
+  NaOH: '<rect x="38" y="6" width="24" height="14" rx="3" fill="#ff4a4a"/><path d="M32 20 H68 Q78 28 78 42 V86 Q78 92 72 92 H28 Q22 92 22 86 V42 Q22 28 32 20 Z" fill="#f3f5ff"/><path d="M32 70 Q50 56 68 70" stroke="#9aa0c8" stroke-width="5" fill="none"/>',
+  O3: '<circle cx="50" cy="56" r="40" fill="none" stroke="#9fd8ff" stroke-width="5" opacity=".6"/><circle cx="50" cy="56" r="30" fill="#3d6bff"/><path d="M36 42 Q46 38 48 48 Q40 56 34 50 Z M56 60 Q66 56 68 66 Q60 74 54 68 Z" fill="#3fbf55"/><path d="M84 6 L74 18 M94 18 L80 24" stroke="#ffd45a" stroke-width="4" stroke-linecap="round"/>',
+  CO: '<path d="M22 72 Q6 72 8 56 Q10 42 26 44 Q28 26 46 28 Q60 16 72 32 Q92 30 90 50 Q98 66 82 72 Z" fill="#8a90a8"/>',
+  Na2: '<path d="M14 62 L34 42 H86 L66 62 Z" fill="#e8ecff"/><path d="M14 62 H66 V82 H14 Z" fill="#b9c0d8"/><path d="M66 62 L86 42 V62 L66 82 Z" fill="#8a90a8"/>',
+});
+const DANGER = new Set(['Cl2', 'CO', 'NaOH']);
+const DANGER_SVG = '<path d="M74 66 L96 98 H52 Z" fill="#ffd45a" stroke="#ff4a4a" stroke-width="5" stroke-linejoin="round"/><path d="M74 76 V87 M74 92 V93" stroke="#1b1e3a" stroke-width="5" stroke-linecap="round"/>';
+const SHELF = ['NaCl', 'HCl', 'H2O', 'NaClO', 'H2', 'O2', 'Cl2', 'CO2', 'CH4', 'H2O2', 'NaOH', 'O3', 'CO', 'Na2'];
+const shelfD = () => Math.min(46, (W - 32) / 7 - 4);
+function drawShelf(found, hint, t = 0) {           // полка в два ряда по 7; hint — подсказка: атомы вещества под полкой
+  const d = shelfD(), x0 = W / 2 - 3.5 * (d + 4);
+  let s = '';
+  SHELF.forEach((key, i) => {
+    const col = LANG === 'he' ? 6 - i % 7 : i % 7;   // на иврите полка заполняется справа налево
+    const x = x0 + col * (d + 4) + 2, y = LY.shelfY + Math.floor(i / 7) * (d + 4), on = found.has(key);
+    s += `<rect x="${x}" y="${y}" width="${d}" height="${d}" rx="9" fill="rgba(13,16,51,.7)" stroke="${key === hint ? '#ffd45a' : 'rgba(201,207,238,.3)'}" stroke-width="${key === hint ? 3 : 1}"${key === hint ? ' class="chhint"' : ''}/>`
+      + `<g transform="translate(${x + d * 0.1} ${y + d * 0.1}) scale(${d * 0.8 / 100})"${on ? '' : ' filter="url(#sil)"'}>${ICON[key]}${on && DANGER.has(key) ? DANGER_SVG : ''}</g>`;
+  });
+  if (hint) {                                      // подсказка: шарики атомов, как на карточке-рецепте
+    const list = SUB[hint].atoms.map(a => a[0]), n = list.length, dd = 34, w = n * dd + 16, hx = W / 2 - w / 2, hy = LY.shelfY + 2 * (d + 4) + 6;
+    s += `<rect x="${hx}" y="${hy}" width="${w}" height="44" rx="12" fill="rgba(13,16,51,.75)" stroke="#ffd45a"/>`;
+    list.forEach((k, i) => { const cx = hx + 8 + dd * (i + 0.5), cy = hy + 22, r = dd * 0.42 * (P.R[k] / 52 * 0.3 + 0.7), dark = relLum(P.COLORS[k]) > 0.18;
+      s += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#g${k})"/><text x="${cx}" y="${cy + r * 0.36}" font-size="${r * 0.95}" text-anchor="middle" font-family="system-ui,sans-serif" fill="${dark ? '#1b1e3a' : '#fff'}">${k}</text>`; });
+  }
+  layer.card.innerHTML = s;
+}
+
+const LOOSE = [[0, 0], [-170, 0], [170, 0], [-85, 205], [85, 205]];
+const formula = list => ELEMS.map(k => [k, list.filter(x => x === k).length]).filter(([, n]) => n).map(([k, n]) => k + n).join('');
+const FREE_MAP = {};
+for (const key of Object.keys(SUB)) if (SUB[key].atoms.length <= MAX_FREE) FREE_MAP[formula(SUB[key].atoms.map(a => a[0]))] = key;
+/* после того как каждый натрий отдал свой электрон (сначала хлору, потом кислороду, потом водороду; углероду — нет):
+   сколько связей ещё нужно каждому из остальных атомов и остались ли натрии без пары */
+function needsAfterNa(list) {
+  const cov = list.filter(k => k !== 'Na'), need = cov.map(k => NEED[k]);
+  let na = list.length - cov.length;
+  for (const pref of ['Cl', 'O', 'H']) for (let i = 0; i < cov.length; i++) while (na && cov[i] === pref && need[i] > 0) { need[i]--; na--; }
+  return { cov, need, na };
+}
+/* можно ли из этих атомов собрать вещество по правилу «полных колец» */
+function feasible(list) {
+  const { need, na } = needsAfterNa(list), n = need.length;
+  if (na || !n) return false;                        // натрию некому отдать электрон
+  const sum = need.reduce((a, b) => a + b, 0), mx = Math.max(...need);
+  if (!sum) return true;                             // все кольца уже полные (кусочек соли)
+  if (n === 2) return need[0] === need[1] && need[0] <= 3;
+  return sum % 2 === 0 && sum / 2 >= n - 1 && mx <= sum - mx && Math.min(...need) >= 1;
+}
+function twoKnown(list) {                          // можно ли разделить на два знакомых вещества
+  const n = list.length;
+  for (let m = 1; m < (1 << n) - 1; m++) {
+    const a = list.filter((_, i) => m >> i & 1), b = list.filter((_, i) => !(m >> i & 1));
+    if (FREE_MAP[formula(a)] && FREE_MAP[formula(b)]) return true;
+  }
+  return false;
+}
+function judge(list) {                              // → { ok:true, key } или { ok:false, text, k — кто мотает головой }
+  const F = T.chFail;
+  if (list.length === 1) return { ok: false, text: F.alone, k: list[0] };
+  const key = FREE_MAP[formula(list)];
+  if (key) return { ok: true, key };
+  if (feasible(list)) return { ok: false, text: F.unknown };   // по правилу колец получается (напр. муравьиная кислота HCOOH)
+  if (twoKnown(list)) return { ok: false, text: F.two };
+  const byCount = [...new Set(list)].sort((a, b) => list.filter(x => x === b).length - list.filter(x => x === a).length);
+  for (const k of byCount) {                        // лишний атом: без него получается знакомое вещество
+    const i = list.indexOf(k), rest = list.filter((_, j) => j !== i);
+    if (FREE_MAP[formula(rest)]) return { ok: false, text: F.extra[k], k };
+  }
+  const { cov, need, na } = needsAfterNa(list);
+  if (na) return { ok: false, text: F.naNoTaker, k: 'Na' };
+  let best = -1;                                    // кому больше всех не хватает
+  cov.forEach((k, i) => { if (need[i] > 0 && (best < 0 || need[i] > need[best])) best = i; });
+  if (best < 0) return { ok: false, text: F.unknown };
+  return { ok: false, text: F.missing[cov[best]], k: cov[best] };
+}
+function shakeLoose(table, k) {                    // атом, которому плохо (или лишний), мотает головой
+  const i = table.indexOf(k), g = layer.tbl.querySelector(`[data-loose="${i}"]`); if (!g) return;
+  const [x, y] = LOOSE[i];
+  tween(0.6, q => g.setAttribute('transform', `rotate(${Math.sin(q * Math.PI * 4) * 10 * (1 - q)} ${x} ${y + P.R[k] + 44})`));
+}
+const eliCall = on => Z.eli.classList.toggle('tappable', on);   // Эли светится: «нажмите на меня — проверим»
+
+async function freeMode() {
+  Z.mode = 'free'; layout(); drawCard(null);
+  const found = new Set(RECIPES.map(r => r[1]).filter(k => SHELF.includes(k))), table = [];
+  let newFound = 0, fails = 0, hint = null;
+  const box = [-170 - 52 - 75, -52 - 70, 170 + 52 + 75, 205 + 52 + 62];
+  const redraw = (op = 1) => { fitTable(box); drawShelf(found, hint); drawTable(table.map((k, i) => `<g data-loose="${i}" style="cursor:pointer">${standing(k, ...LOOSE[i])}</g>`).join(''), op); };
+  Z.redraw = () => redraw();
+  redraw();
+  for (const t of T.chFreeIntro) await say(t);
+  hideSay();
+  while (newFound < FREE_GOAL) {
+    eliCall(table.length > 0);
+    const act = await new Promise(res => {
+      Z.binHandler = k => res({ k }); Z.looseHandler = i => res({ remove: i }); Z.eliHandler = () => res({ check: true }); binsOn(true);
+    });
+    Z.binHandler = Z.looseHandler = Z.eliHandler = null; binsOn(false);
+    if (act.k) {                                   // взять атом из корзинки
+      if (table.length >= MAX_FREE) { sfx('oops'); shakeBin(act.k); await say(T.chFreeFull, { next: false }); continue; }
+      sfx('tap'); playVoice(T.chNames[act.k] + '.', true); fitTable(box);
+      await flyToTable(act.k, ...LOOSE[table.length]); table.push(act.k); redraw(); continue;
+    }
+    if (act.remove != null) { sfx('pop'); table.splice(act.remove, 1); redraw(); continue; }   // атом со стола — обратно в корзинку
+    eliCall(false);                                // проверка
+    if (!table.length) { await say(T.chFreeEmpty, { next: false }); continue; }
+    const res = judge(table);
+    if (!res.ok) {
+      sfx('oops'); if (res.k) shakeLoose(table, res.k);
+      await say(res.text); await say(T.chFreeMore, { next: false });
+      if (++fails >= 3 && !hint) {                  // подсказка: атомы одного ненайденного вещества
+        const left = SHELF.filter(k => !found.has(k)); hint = left[Math.floor(Math.random() * left.length)]; fails = 0;
+        redraw(); sfx('sparkle'); await say(T.chFreeHint, { next: false });
+      }
+      continue;
+    }
+    // получилось: атомы встают по местам вещества — и связываются
+    fails = 0; Z.redraw = null;
+    await tween(0.3, q => redraw(1 - q));
+    const M = prep(res.key), fin = { ...ST0, pull: 1, sign: M.hasIon ? 1 : 0, fly: 1, reach: 1, join: 1 };
+    fitTable(molBox(M)); drawTable(drawMol(M, ST0), 0);
+    await tween(0.3, q => drawTable(drawMol(M, ST0), q));
+    await wait(250);
+    await bondAnim(M);
+    if (found.has(res.key)) { await say(T.chFound[res.key]); await say(T.chFreeAgain); }
+    else {
+      found.add(res.key); newFound++; if (hint === res.key) hint = null;
+      csfx('win'); drawShelf(found, hint); showIcon(res.key, true);
+      await say(T.chFound[res.key]); showIcon(res.key, false);
+    }
+    hideSay();
+    await tween(0.4, q => drawTable(drawMol(M, fin), 1 - q));
+    table.length = 0; Z.redraw = () => redraw(); redraw();
+  }
+  eliCall(false); Z.redraw = null;
+}
+
 async function scene() {
   await flash();
   clearStage();
@@ -594,13 +753,19 @@ async function scene() {
   for (const k of Object.keys(Z)) delete Z[k];
   Z.root = document.createElement('div'); Z.root.id = 'chem'; stage.appendChild(Z.root);
   svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.id = 'chsvg'; Z.root.appendChild(svg);
-  svg.addEventListener('pointerdown', e => { const b = e.target.closest('[data-bin]'); if (b && Z.binHandler) Z.binHandler(b.dataset.bin); });
-  Z.eli = sprite('eli_hello', 'front'); Z.eli.addEventListener('click', () => talkTap());
+  svg.addEventListener('pointerdown', e => {
+    const b = e.target.closest('[data-bin]'); if (b && Z.binHandler) { Z.binHandler(b.dataset.bin); return; }
+    const l = e.target.closest('[data-loose]'); if (l && Z.looseHandler) Z.looseHandler(+l.dataset.loose);
+  });
+  Z.eli = sprite('eli_hello', 'front'); Z.eli.addEventListener('click', () => { if (!talkTap() && Z.eliHandler) Z.eliHandler(); });
   layout(); initSvg(); drawBins(); placeEli();
   await unflash();
   for (const t of T.chIntro) await say(t);
-  for (let i = 0; i < RECIPES.length; i++) await recipe(RECIPES[i][0], RECIPES[i][1], i === 0);
+  if (!/[?&]free\b/.test(location.search))          // ?free в адресе — сразу свободный режим (для проверки)
+    for (let i = 0; i < RECIPES.length; i++) await recipe(RECIPES[i][0], RECIPES[i][1], i === 0);
   drawCard(null);
+  await flash(); await unflash();
+  await freeMode();
   await say(T.chWin);
   await say(T.fireBye);
   await eliVanish(Z.eli);
@@ -612,5 +777,5 @@ function relayout() {
   if (Z.redraw) Z.redraw();
 }
 
-return { scene, relayout, eli: () => Z.eli };
+return { scene, relayout, eli: () => Z.eli, test: { judge, FREE_MAP } };   // test — для проверки из консоли
 })();

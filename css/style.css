@@ -317,6 +317,9 @@ button.uvitem{cursor:pointer}
 #chem{position:absolute;inset:0;z-index:6}
 #chsvg{position:absolute;left:0;top:0;z-index:7;touch-action:manipulation}
 #chsvg .chbin{cursor:pointer}
+#chsvg .chhint{animation:chhint 1.1s ease-in-out infinite}
+@keyframes chhint{0%,100%{stroke-opacity:.25}50%{stroke-opacity:1}}
+@media (prefers-reduced-motion:reduce){#chsvg .chhint{animation:none}}
 
 /* глава «Реакции» */
 #rx{position:absolute;inset:0;z-index:6}
