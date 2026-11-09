@@ -23,7 +23,7 @@ python -m http.server 8123
 Прогресс (до какой сцены дошли, значок, пойманные цвета штрихкода) хранится в браузере.
 Начать с чистого листа: в консоли браузера `localStorage.clear()`.
 
-Сцену можно открыть сразу по адресу: `#he-apple`, `#he-build`, `#he-eli1` … `#he-eli5`, `#he-fire`, `#he-rainbow`, `#he-color`, `#he-uv`, `#he-sky`, `#he-chem`, `#he-react`, `#he-leaf`, `#he-elec`, `#he-photo`, `#he-magnet`, `#he-final`; карта глав — `#he-map`.
+Сцену можно открыть сразу по адресу: `#he-apple`, `#he-build`, `#he-eli1` … `#he-eli5`, `#he-fire`, `#he-chem`, `#he-react`, `#he-rainbow`, `#he-color`, `#he-uv`, `#he-sky`, `#he-leaf`, `#he-elec`, `#he-photo`, `#he-magnet`, `#he-final`; карта глав — `#he-map`.
 Без звука (проверить, когда все спят): `http://127.0.0.1:8123/?mute#he-fire`.
 
 ## Устройство

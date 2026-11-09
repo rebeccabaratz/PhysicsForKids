@@ -44,7 +44,7 @@
     STEP_COLORS    — пастельные цвета ступенек 1–5
   «Собери атом»: константы NEUT (нейтроны для каждого числа протонов), BIN = 8 шариков в корзинке, SHAKE_MS;
     карточки веществ — img/card_1.webp … card_8.webp; когда открыты все 8 — сам переход к Эли.
-  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #chem — «Вещества», #react — «Реакции», #leaf — «Лист делает сахар», #elec — «Электричество», #photo — «Фотон выбивает Эли», #magnet — «Магниты», #final — финал; #map — карта глав); ◀ — начало предыдущей сцены, ▶ — следующей (если эта пройдена).
+  Навигация: 9 сцен (#apple, #build, #eli1…#eli5, #fire — «Салют», #chem — «Вещества», #react — «Реакции», #rainbow — «Радуга», #color — «Цвет», #uv — «Невидимый свет», #sky — «Небо», #leaf — «Лист делает сахар», #elec — «Электричество», #photo — «Фотон выбивает Эли», #magnet — «Магниты», #final — финал; #map — карта глав); ◀ — начало предыдущей сцены, ▶ — следующей (всегда: взрослый без звука может пройти дальше).
     Внутри сцены продолжают нажатием на того, кто говорит (Атом или Эли); карточка закрывается нажатием на неё.
   Тексты: объект T — все фразы игры в одном месте, для перевода на иврит.
   Задания показываются без текста: нужная ступенька мерцает, Эли подпрыгивает;
@@ -3092,9 +3092,9 @@ function fnRelayout() {}
    Глава открыта, если пройдена предыдущая; пройденные светятся золотом, следующая мигает, дальние — с замочком.
    Взрослым: долгое нажатие (1,5 с) на карту открывает все главы (помнится в браузере). */
 const CHAPTERS = [
-  { first: 'apple', last: 'eli5', c: '#ff4a5a' }, { first: 'fire', c: '#ffc21a' }, { first: 'rainbow', c: '#3fdcff' },
-  { first: 'color', c: '#ff8a3d' }, { first: 'uv', c: '#b48cff' }, { first: 'sky', c: '#5dff8a' }, { first: 'chem', c: '#f3f5ff' },
-  { first: 'react', c: '#ff4f8b' }, { first: 'leaf', c: '#3fbf55' }, { first: 'elec', c: '#ffb02e' }, { first: 'photo', c: '#7a5cff' },
+  { first: 'apple', last: 'eli5', c: '#ff4a5a' }, { first: 'fire', c: '#ffc21a' }, { first: 'chem', c: '#f3f5ff' },
+  { first: 'react', c: '#ff4f8b' }, { first: 'rainbow', c: '#3fdcff' }, { first: 'color', c: '#ff8a3d' }, { first: 'uv', c: '#b48cff' },
+  { first: 'sky', c: '#5dff8a' }, { first: 'leaf', c: '#3fbf55' }, { first: 'elec', c: '#ffb02e' }, { first: 'photo', c: '#7a5cff' },
   { first: 'magnet', c: '#ff4a4a' }, { first: 'final', c: '#ffe36b' },
 ].map(ch => ({ ...ch, last: ch.last || ch.first }));
 const chapterOf = s => CHAPTERS.find(ch => SCENES.indexOf(s) >= SCENES.indexOf(ch.first) && SCENES.indexOf(s) <= SCENES.indexOf(ch.last));
@@ -3132,10 +3132,10 @@ function showMap() {
 
 /* ===================== СЦЕНЫ И СТРЕЛКИ ===================== */
 /* Сцена = адрес после # (#apple, #build, #eli1 … #eli5). ◀ и ▶ перезапускают нужную сцену с чистого листа.
-   ▶ активна, если текущая сцена уже пройдена (или в «Собери атом» открыт хотя бы 1 атом).
+   ▶ активна всегда (кроме финала): без звука задание не понять, а застревать нельзя. Пропущенная глава не считается пройденной.
    Пройденные сцены, значок и место, где остановились, помнятся в этом браузере (localStorage):
    «Играть» — всегда с яблока; «Продолжить» (если игра уже начата) — со сцены после последней законченной. */
-const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'rainbow', 'color', 'uv', 'sky', 'chem', 'react', 'leaf', 'elec', 'photo', 'magnet', 'final'];
+const SCENES = ['apple', 'build', 'eli1', 'eli2', 'eli3', 'eli4', 'eli5', 'fire', 'chem', 'react', 'rainbow', 'color', 'uv', 'sky', 'leaf', 'elec', 'photo', 'magnet', 'final'];
 const SCENE_FN = { apple: partA, build: buildScene, eli1: eliStage1, eli2: eliStage2, eli3: eliStage3, eli4: eliStage4, eli5: eliStage5, fire: fireScene, rainbow: rainbowScene, color: colorScene, uv: uvScene, sky: skyScene, chem: chemScene, react: reactScene, leaf: leafScene, elec: elecScene, photo: photoScene, magnet: magnetScene, final: finalScene };
 let cur = -1;
 const DONE = new Set();
@@ -3143,7 +3143,7 @@ try { JSON.parse(localStorage.getItem('eliDone') || '[]').forEach(x => DONE.add(
 function markDone(n) { DONE.add(n); try { localStorage.setItem('eliDone', JSON.stringify([...DONE])); } catch (e) {} updNav(); }
 function updNav() {
   $('#prev').disabled = cur < 0;
-  $('#next').disabled = !(cur >= 0 && cur < SCENES.length - 1 && DONE.has(SCENES[cur]));
+  $('#next').disabled = !(cur >= 0 && cur < SCENES.length - 1);
 }
 function goScene(i) { location.hash = LANG + (i >= 0 ? '-' + SCENES[i] : ''); location.reload(); }
 async function runFrom(name) {
