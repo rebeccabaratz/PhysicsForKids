@@ -90,7 +90,8 @@ const P = {
   CHEW_TIMES: 2,
   LASER_ATOMS: 5,               // мини-игра «Лазер»: сколько маленьких Эли
   LASER_MS: 3500,               // мини-игра «Лазер»: за сколько мс строй фотонов пролетает ширину экрана
-  SHOW_TEXT: false,             // показывать ли фразы текстом (дети не читают: только голос; «Где Эли?» — всегда)
+  SHOW_TEXT: true,              // показывать ли фразы текстом (пока игра в работе — да: новые фразы без озвучки, решение автора 2026-11-09;
+                                // когда всё озвучим — false: дети не читают)
   PLANET_MS: 4500,              // сколько вращается и наклоняется планетарный атом
   RING_SIZES: [0.18, 0.34, 0.54, 0.76, 1.0],   // радиусы колец 1–5 (доля самого большого)
   MOUTH_OPEN: [0.50, 0.55],   // где рот на картинке «рот открыт» (доли ширины и высоты)
@@ -122,8 +123,9 @@ document.documentElement.dir = LANG === 'he' ? 'rtl' : 'ltr';
 document.documentElement.lang = LANG;
 
 const T = LANG === 'he' ? T_HE : T_RU;
-// ?text в адресе — для взрослых без звука: фраза видна вверху, по-русски (если есть русский вариант), иначе на иврите
-if (/[?&]text\b/.test(location.search)) P.SHOW_TEXT = true;
+// ?text в адресе — фразы вверху по-русски (если есть русский вариант), иначе на иврите
+const RU_TEXT = /[?&]text\b/.test(location.search);
+if (RU_TEXT) P.SHOW_TEXT = true;
 const RU_OF = new Map();                          // ивритская фраза → русская (одинаковые ключи в T_HE и T_RU)
 (function pair(h, r) {
   if (typeof h === 'string' && typeof r === 'string') { RU_OF.set(h, r); return; }
@@ -255,7 +257,7 @@ function speaker() {
   if (phase === 'elec' && EL) return EL.eli;
   if (phase === 'leaf' && LF) return LF.eli;
   if (phase === 'react' && RX) return RX.eli;
-  if (phase === 'chem' && CH) return CH.eli;
+  if (phase === 'chem') return CHEM.eli();
   if (phase === 'sky' && SK) return SK.eli;
   if (phase === 'uv' && UV) return UV.eli;
   if (phase === 'color' && CL) return CL.eli;
@@ -277,9 +279,8 @@ function talkTap(auto = false) {
 }
 function say(text, o = {}) {
   endTalk();
-  sayText = text; $('#replay').hidden = false;
-  $('#btext').textContent = LANG === 'he' && P.SHOW_TEXT && RU_OF.has(text) ? RU_OF.get(text) : text;
-  if (!(o.next ?? true)) return playVoice(text).then(() => {});
+  sayText = text; $('#replay').hidden = false; showText(text);
+  if (!(o.next ?? true)) return playVoice(text).then(ok => ok === false && P.SHOW_TEXT ? wait(readMs(text)) : undefined);
   const sp = speaker();
   return new Promise(r => {
     talk = { r, sp, tap: false };
@@ -293,10 +294,14 @@ function voiceThenGo(t, interrupt = false) {      // озвучить текущ
     if (ok) { wait(AFTER_VOICE_MS).then(() => { if (talk === t) talkTap(true); }); return; }
     t.tap = true;                                 // озвучки нет — ждём нажатия
     if (t.sp) t.sp.classList.add('talk'); else $('#btext').classList.add('tap');
-    // текст не показывается (SHOW_TEXT) — нажимать не на что: идём дальше сами, через время на фразу
-    if (!P.SHOW_TEXT) wait(Math.max(2500, sayText.length * 70)).then(() => { if (talk === t) talkTap(true); });
+    // идём дальше сами, через время на фразу (нажатие на говорящего или на текст — сразу)
+    wait(P.SHOW_TEXT ? readMs(sayText) : Math.max(2500, sayText.length * 70)).then(() => { if (talk === t) talkTap(true); });
   });
 }
+function showText(text) {                        // фраза вверху (видна, если P.SHOW_TEXT; с ?text — русский вариант)
+  $('#btext').textContent = LANG === 'he' && RU_TEXT && RU_OF.has(text) ? RU_OF.get(text) : text;
+}
+const readMs = text => 1500 + 55 * text.length;   // фраза без озвучки: сколько её читать (нажатие — дальше сразу)
 function hideSay() { endTalk(); sayText = ''; if (!P.SHOW_TEXT) $('#btext').textContent = ''; $('#replay').hidden = true; }   // ?text — фраза-задание видна до следующей
 const tapOn = el => new Promise(r => el.addEventListener('click', () => r(), { once: true }));
 let FLASHED = false;
@@ -2240,32 +2245,12 @@ async function skyScene() {
 }
 
 
-/* ===================== ГЛАВА «ВЕЩЕСТВА» ===================== */
-/* Эли — «клей»: электроны держат атомы вместе. Внизу корзинки с атомами (цвета, принятые в химии): водород белый,
-   углерод тёмно-серый, кислород красный, натрий фиолетовый, хлор зелёный. Вокруг атома — только его внешние
-   электроны (H 1, C 4, O 6, Na 1, Cl 7). Картинка-рецепт показывает, какие шарики нужны и сколько. Ребёнок кладёт
-   атомы на стол; лишний атом возвращается в корзинку. Все собраны — атомы сходятся в молекулу, внешние кольца
-   становятся полными, и атомы улыбаются (у H полное кольцо — 2 электрона, у остальных здесь — 8; для этих веществ это верно).
-   Соль NaCl: электрон-Эли ПЕРЕПРЫГИВАЕТ от натрия к хлору → Na «+», Cl «−», притягиваются (ионная связь).
-   Кислота HCl, вода H₂O: атомы ДЕЛЯТ пару электронов (ковалентная связь); пара ближе к тому, кто сильнее тянет (Cl, O).
-   Хлорка NaClO и сода NaHCO₃: оба способа сразу. Уксус CH₃COOH: 8 атомов, испытание.
-   Что на самом деле: «кислота» — это HCl, растворённый в воде; соль в жизни — кристалл из многих Na⁺ и Cl⁻;
-   хлорка и сода тоже ионные кристаллы (в хлорке — в растворе), здесь показана одна «пара». Молекулы плоские. */
-const CH_ATOMS = {
+/* ===================== ГЛАВА «ВЕЩЕСТВА» =====================
+   Сама глава — в js/chem.js (атомы с ручками из проб чата). Здесь — цвета атомов и карточки веществ для «Реакций». */
+const CH_ATOMS = {                              // цвета атомов (как в химии) — шарики «Реакций»
   H: { c: '#f3f5ff', r: 0.55, v: 1 }, C: { c: '#4a4f66', r: 0.8, v: 4 }, O: { c: '#ff4a4a', r: 0.8, v: 6 },
   Na: { c: '#b46bff', r: 0.95, v: 1 }, Cl: { c: '#45e36a', r: 0.95, v: 7 },
 };
-const CH_PULL = { H: 1, C: 2, Na: 0, O: 4, Cl: 3 };   // кто сильнее тянет общую пару
-const CH_RECIPES = [
-  { id: 'salt', atoms: [['Na', -0.75, 0], ['Cl', 0.75, 0]], bonds: [[0, 1, 'ion']] },
-  { id: 'acid', atoms: [['H', -0.7, 0], ['Cl', 0.45, 0]], bonds: [[0, 1, 1]] },
-  { id: 'water', atoms: [['O', 0, -0.15], ['H', -0.75, 0.45], ['H', 0.75, 0.45]], bonds: [[0, 1, 1], [0, 2, 1]] },
-  { id: 'bleach', atoms: [['Na', -1.35, 0], ['O', -0.1, 0], ['Cl', 1.05, 0]], bonds: [[0, 1, 'ion'], [1, 2, 1]] },
-  { id: 'soda', atoms: [['Na', -1.6, 0.35], ['O', -0.5, 0.35], ['C', 0.35, -0.15], ['O', 0.35, -1.15], ['O', 1.2, 0.35], ['H', 1.95, 0.05]],
-    bonds: [[0, 1, 'ion'], [1, 2, 1], [2, 3, 2], [2, 4, 1], [4, 5, 1]] },
-  { id: 'vinegar', atoms: [['C', -0.55, 0], ['C', 0.45, 0], ['H', -1.3, 0], ['H', -0.55, -0.8], ['H', -0.55, 0.8], ['O', 0.95, -0.8], ['O', 1.2, 0.55], ['H', 1.95, 0.55]],
-    bonds: [[0, 1, 1], [0, 2, 1], [0, 3, 1], [0, 4, 1], [1, 5, 2], [1, 6, 1], [6, 7, 1]] },
-];
 const CH_ICON = {                                // карточки веществ
   salt: '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 14 L84 32 L84 70 L50 88 L16 70 L16 32 Z" fill="#f3f5ff"/><path d="M50 14 L84 32 L50 50 L16 32 Z" fill="#fff"/><path d="M50 50 L84 32 L84 70 L50 88 Z" fill="#c9cfee"/></svg>',
   acid: '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M40 10 H60 V36 L82 82 Q84 90 74 90 H26 Q16 90 18 82 L40 36 Z" fill="rgba(220,235,255,.25)" stroke="#dff3ff" stroke-width="4"/><path d="M28 64 H72 L80 82 Q81 86 74 86 H26 Q19 86 20 82 Z" fill="#b6ff6a"/></svg>',
@@ -2274,131 +2259,7 @@ const CH_ICON = {                                // карточки вещес�
   soda: '<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="22" y="20" width="56" height="64" rx="6" fill="#ff8a3d"/><rect x="30" y="34" width="40" height="22" rx="4" fill="#f3f5ff"/><path d="M14 92 Q50 70 86 92 Z" fill="#f3f5ff"/></svg>',
   vinegar: '<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="42" y="6" width="16" height="14" rx="3" fill="#7a4a24"/><path d="M40 20 H60 V34 Q74 40 74 54 V86 Q74 92 68 92 H32 Q26 92 26 86 V54 Q26 40 40 34 Z" fill="rgba(255,214,140,.55)" stroke="#ffe0a8" stroke-width="3"/><circle cx="50" cy="66" r="12" fill="#ff4a4a"/><rect x="49" y="50" width="3" height="6" fill="#7a4a24"/></svg>',
 };
-let CH = null;
-
-const chU = () => Math.min(W * 0.085, H * 0.06);
-function chAtomEl(k) {                           // шарик атома: лицо и внешние электроны
-  const a = CH_ATOMS[k], b = document.createElement('div'); b.className = 'chatom'; b._k = k;
-  b.style.setProperty('--bc', a.c);
-  b.innerHTML = '<svg class="face" viewBox="0 0 40 40" aria-hidden="true"><circle cx="14.5" cy="17" r="2.6" fill="#1b1e4a"/><circle cx="25.5" cy="17" r="2.6" fill="#1b1e4a"/>'
-    + '<path class="mouth" d="M14 26 H26" fill="none" stroke="#1b1e4a" stroke-width="2.6" stroke-linecap="round"/></svg>'
-    + [...Array(a.v)].map((_, i) => { const t = i / a.v * Math.PI * 2 - Math.PI / 2; return `<i class="ve" style="left:${50 + Math.cos(t) * 60}%;top:${50 + Math.sin(t) * 60}%"></i>`; }).join('');
-  return b;
-}
-function chSize(el, k, x, y) { const d = CH_ATOMS[k].r * chU() * 2; Object.assign(el.style, { width: d + 'px', height: d + 'px', left: x - d / 2 + 'px', top: y - d / 2 + 'px' }); }
-const chSmile = (el, on) => el.querySelector('.mouth').setAttribute('d', on ? 'M13.5 24.5 Q20 30 26.5 24.5' : 'M14 26 H26');
-function chLayout() {
-  if (!CH) return;
-  const order = ['H', 'C', 'O', 'Na', 'Cl'];
-  order.forEach((k, i) => { const b = CH.bins[k];
-    const d = Math.max(60, Math.min(W * 0.17, 84)); Object.assign(b.style, { left: W * (0.1 + i * 0.2) - d / 2 + 'px', top: H * 0.86 - d / 2 + 'px', width: d + 'px', height: d + 'px' }); });
-  const q = Math.min(W * 0.5, 230);
-  Object.assign(CH.recipe.style, { left: W / 2 - q / 2 + 'px', top: H * 0.13 + 'px', width: q + 'px' });
-  if (CH.task) chPlaceTable();
-  setB(CH.eli, L.eli * 0.8); put(CH.eli, W * 0.9, H * 0.7, CH.eli._k ?? 1);
-}
-function chPos(i, loose) {                       // место i-го атома рецепта на столе (врозь — до сборки)
-  const [, x, y] = CH.task.atoms[i], u = chU(), s = loose ? 1.3 : 1;
-  return [W / 2 + x * u * 2.4 * s, H * 0.47 + y * u * 2.4 * s];   // между атомами — место для связей и пар
-}
-function chPlaceTable() {
-  CH.placed.forEach((el, i) => { if (!el) return; const [x, y] = chPos(i, !CH.done); chSize(el, el._k, x, y); });
-  chBonds();
-}
-function chBonds() {                             // связи: линии и общие пары; ионная — «+» и «−»
-  const parts = [];
-  if (CH.done) for (const [i, j, t] of CH.task.bonds) {
-    const [x1, y1] = chPos(i, false), [x2, y2] = chPos(j, false), ki = CH.task.atoms[i][0], kj = CH.task.atoms[j][0];
-    if (t === 'ion') continue;
-    const n = t, dx = x2 - x1, dy = y2 - y1, L0 = Math.hypot(dx, dy), nx = -dy / L0, ny = dx / L0;
-    const w = CH_PULL[kj] > CH_PULL[ki] ? 0.62 : CH_PULL[kj] < CH_PULL[ki] ? 0.38 : 0.5;   // пара ближе к тому, кто сильнее тянет
-    for (let m = 0; m < n; m++) {
-      const off = (m - (n - 1) / 2) * 7;
-      parts.push(`<line x1="${x1 + nx * off}" y1="${y1 + ny * off}" x2="${x2 + nx * off}" y2="${y2 + ny * off}" stroke="rgba(255,255,255,.55)" stroke-width="5" stroke-linecap="round"/>`);
-      const px = x1 + dx * w + nx * off, py = y1 + dy * w + ny * off;
-      parts.push(`<circle cx="${px - dx / L0 * 5}" cy="${py - dy / L0 * 5}" r="4" fill="#3fdcff"/><circle cx="${px + dx / L0 * 5}" cy="${py + dy / L0 * 5}" r="4" fill="#3fdcff"/>`);
-    }
-  }
-  CH.svg.setAttribute('viewBox', `0 0 ${W} ${H}`); CH.svg.setAttribute('width', W); CH.svg.setAttribute('height', H);
-  CH.svg.innerHTML = parts.join('');
-}
-function chRecipe() {                            // картинка-рецепт: шарики, которые нужны; уже положенные — тусклые
-  CH.recipe.innerHTML = CH.task.atoms.map(([k], i) => `<span class="chr${CH.placed[i] ? ' got' : ''}" style="--bc:${CH_ATOMS[k].c};width:${CH_ATOMS[k].r * 34}px;height:${CH_ATOMS[k].r * 34}px"></span>`).join('');
-}
-async function chTake(k) {                       // ребёнок взял атом из корзинки
-  if (!CH.taking || CH.done) return;
-  playVoice(T.chNames[k] + '.', true);
-  const i = CH.task.atoms.findIndex(([kk], j) => kk === k && !CH.placed[j]);
-  const bin = CH.bins[k].getBoundingClientRect(), st = stage.getBoundingClientRect();
-  const el = chAtomEl(k); CH.root.appendChild(el); chSize(el, k, bin.left - st.left + bin.width / 2, bin.top - st.top + bin.height / 2);
-  if (i < 0) {                                   // такой атом сейчас не нужен — возвращается
-    sfx('oops'); await el.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-50px)' }, { transform: 'translateY(0)' }], { duration: 500 * K }).finished.catch(() => {});
-    el.remove(); if (!CH.wrongSaid) { CH.wrongSaid = true; say(T.chWrong, { next: false }).then(hideSay); } return;
-  }
-  sfx('tap'); CH.placed[i] = el; chRecipe();
-  const [x, y] = chPos(i, true), d = CH_ATOMS[k].r * chU() * 2;
-  el.style.transition = `left ${0.5 * K}s ease-out, top ${0.5 * K}s ease-out`;
-  requestAnimationFrame(() => Object.assign(el.style, { left: x - d / 2 + 'px', top: y - d / 2 + 'px' }));
-  if (CH.placed.every(Boolean)) { CH.taking = false; await wait(700); CH.resolve(); }
-}
-async function chBuild(task) {
-  CH.task = task; CH.placed = task.atoms.map(() => null); CH.done = false; CH.wrongSaid = false;
-  chRecipe(); CH.recipe.hidden = false;
-  await say(T.chMake[task.id], { next: false }); hideSay();
-  CH.taking = true; Object.values(CH.bins).forEach(b => b.classList.add('tappable'));
-  await new Promise(r => { CH.resolve = r; });
-  Object.values(CH.bins).forEach(b => b.classList.remove('tappable'));
-  // ионная связь: электрон перепрыгивает от натрия к соседу
-  for (const [i, j, t] of task.bonds) if (t === 'ion') {
-    const a = CH.placed[i], b = CH.placed[j], ve = a.querySelector('.ve'), ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(), st = stage.getBoundingClientRect();
-    const e = document.createElement('i'); e.className = 've fly'; CH.root.appendChild(e); ve.remove();
-    const x0 = ra.left - st.left + ra.width / 2, y0 = ra.top - st.top, x1 = rb.left - st.left + rb.width / 2, y1 = rb.top - st.top;
-    sfx('rise');
-    await e.animate([{ transform: `translate(${x0}px,${y0}px)` }, { transform: `translate(${(x0 + x1) / 2}px,${Math.min(y0, y1) - 50}px)` }, { transform: `translate(${x1}px,${y1}px)` }],
-      { duration: 1100 * K, easing: 'ease-in-out', fill: 'forwards' }).finished.catch(() => {});
-    e.remove();
-    a.insertAdjacentHTML('beforeend', '<b class="chq">+</b>'); b.insertAdjacentHTML('beforeend', '<b class="chq">−</b>');
-    await wait(500);
-  }
-  // атомы сходятся: внешние кольца полные — атомы улыбаются
-  CH.done = true; sfx('sparkle');
-  CH.placed.forEach(el => { el.style.transition = `left ${0.7 * K}s ease-in-out, top ${0.7 * K}s ease-in-out, width ${0.7 * K}s, height ${0.7 * K}s`; el.querySelectorAll('.ve').forEach(v => v.remove()); });
-  chPlaceTable(); await wait(800);
-  CH.placed.forEach(el => chSmile(el, true)); sfx('ding');
-  CH.recipe.hidden = true;
-  CH.card.innerHTML = CH_ICON[task.id]; CH.card.hidden = false;
-  const q = Math.min(W * 0.26, H * 0.15);
-  Object.assign(CH.card.style, { left: W / 2 - q / 2 + 'px', top: H * 0.13 + 'px', width: q + 'px', height: q + 'px' });
-  CH.card.animate([{ transform: 'scale(.4)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 500 * K, easing: 'ease-out' });
-  for (const t of T.chAbout[task.id]) await say(t);
-  hideSay();
-  await Promise.all(CH.placed.map(el => el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400 * K, fill: 'forwards' }).finished.catch(() => {})));
-  CH.placed.forEach(el => el.remove()); CH.svg.innerHTML = ''; CH.card.hidden = true; CH.task = null;
-}
-
-async function chemScene() {
-  await flash();
-  clearStage();
-  phase = 'chem'; setLabel(T.chLabel);
-  CH = { bins: {}, placed: [], task: null };
-  CH.root = document.createElement('div'); CH.root.id = 'chem'; stage.appendChild(CH.root);
-  CH.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); CH.svg.id = 'chsvg'; CH.root.appendChild(CH.svg);
-  for (const k of ['H', 'C', 'O', 'Na', 'Cl']) {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'chbin'; b.setAttribute('aria-label', T.chNames[k]);
-    b.appendChild(chAtomEl(k)); b.onclick = () => chTake(k); CH.root.appendChild(b); CH.bins[k] = b;
-  }
-  CH.recipe = document.createElement('div'); CH.recipe.className = 'chrecipe'; CH.recipe.hidden = true; CH.root.appendChild(CH.recipe);
-  CH.card = document.createElement('div'); CH.card.className = 'chcard'; CH.card.hidden = true; CH.root.appendChild(CH.card);
-  CH.eli = sprite('eli_hello', 'front'); CH.eli.addEventListener('click', () => talkTap());
-  chLayout();
-  await unflash();
-  for (const t of T.chIntro) await say(t);
-  await say(T.chHow, { next: false }); hideSay();
-  for (const task of CH_RECIPES) await chBuild(task);
-  await say(T.chWin);
-  await say(T.fireBye);
-  await eliVanish(CH.eli);
-}
+const chemScene = () => CHEM.scene();
 
 
 /* ===================== ГЛАВА «РЕАКЦИИ» ===================== */
@@ -3188,7 +3049,7 @@ function relayout() {
   if (phase === 'elec') elRelayout();
   if (phase === 'leaf') lfLayout();
   if (phase === 'react') rxRelayout();
-  if (phase === 'chem') chLayout();
+  if (phase === 'chem') CHEM.relayout();
   if (phase === 'sky') skyRender();
   if (phase === 'uv') uvRelayout();
   if (phase === 'color') colRender();
