@@ -1,0 +1,33 @@
+<!doctype html>
+<!-- Все вещества главы «Вещества» в готовом виде (связаны) — посмотреть атомы и длину ручек.
+     Открыть: play.bat → http://127.0.0.1:8123/tools/atoms.html
+     Рисует js/chem.js (CHEM.test); длина ручек — G.BOND и G.ION в начале js/chem.js. -->
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Вещества</title>
+<style>
+  body{margin:0;background:#0d1033;color:#c9cfee;font:16px system-ui,sans-serif}
+  #all{display:flex;flex-wrap:wrap;gap:8px;padding:8px;direction:ltr}
+  figure{margin:0;text-align:center}
+  svg{display:block;width:240px;height:170px;background:rgba(255,255,255,.03);border-radius:12px}
+</style>
+</head>
+<body>
+<div id="all"></div>
+<script>const T = {}, LANG = 'he', K = 1; function soundOn() { return false; }</script>
+<script src="../js/chem.js"></script>
+<script>
+const { prep, drawMol, defs, molBox, ST0, SUB } = CHEM.test;
+for (const k of Object.keys(SUB)) {
+  const M = prep(k), b = molBox(M, 'final'), fin = { ...ST0, pull: 1, sign: M.hasIon ? 1 : 0, fly: 1, reach: 1, join: 1 };
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', `${b[0]} ${b[1]} ${b[2] - b[0]} ${b[3] - b[1]}`);
+  defs(svg); svg.insertAdjacentHTML('beforeend', drawMol(M, fin));
+  const f = document.createElement('figure'); f.append(svg, Object.assign(document.createElement('figcaption'), { textContent: k }));
+  document.getElementById('all').appendChild(f);
+}
+</script>
+</body>
+</html>

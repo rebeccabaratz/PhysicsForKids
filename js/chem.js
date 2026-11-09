@@ -12,7 +12,9 @@
    Что на самом деле: «кислота» — это HCl, растворённый в воде; соль, хлорка и сода — ионные кристаллы из многих
    ионов (здесь одна «пара»); молекулы показаны плоскими; правило «полное кольцо» (октет) — упрощение, верное для этих веществ. */
 const CHEM = (() => {
-const G = { SPREAD: 1.5 };                        // насколько раздвинуты атомы до связи (1 — уже стоят вместе)
+const G = { SPREAD: 1.5,                          // насколько раздвинуты атомы до связи (1 — уже стоят вместе)
+  BOND: 48, ION: 14 };                            // промежуток между атомами (px рисунка): за руки / «+» и «−» (решение автора 2026-11-09:
+                                                  // ручки короче, чтобы вода выглядела привычно; в пробах чата было 72 и 52)
 
 /* ---------- атомы: тело, лицо, ручки, ножки, электроны (из atoms-svg/lib.js) ---------- */
 const P = {
@@ -229,6 +231,13 @@ function prep(key, spread = G.SPREAD) {           // spread — наскольк
   const S = SUB[key];
   const A = S.atoms.map(([k, x, y], i) => ({ i, k, fx: x, fy: y, r: P.R[k], cov: 0, gain: 0, give: 0, partners: [] }));
   const B = S.bonds.map(([a, b, o]) => ({ a, b, ion: o === 'ion', n: o === 'ion' ? 0 : o }));
+  {                                                 // связи короче: направления — как на рисунке чата, длина — r1 + r2 + промежуток
+    const placed = new Set([0]), q = [0];
+    while (q.length) { const i = q.shift();
+      for (const b of B) { const j = b.a === i ? b.b : b.b === i ? b.a : -1; if (j < 0 || placed.has(j)) continue;
+        const dx = S.atoms[j][1] - S.atoms[i][1], dy = S.atoms[j][2] - S.atoms[i][2], d = Math.hypot(dx, dy) || 1, len = A[i].r + A[j].r + (b.ion ? G.ION : G.BOND);
+        A[j].fx = A[i].fx + dx / d * len; A[j].fy = A[i].fy + dy / d * len; placed.add(j); q.push(j); } }
+  }
   for (const b of B) {
     A[b.a].partners.push(b.b); A[b.b].partners.push(b.a);
     if (b.ion) { A[b.a].give++; A[b.b].gain++; } else { A[b.a].cov += b.n; A[b.b].cov += b.n; }
@@ -777,5 +786,5 @@ function relayout() {
   if (Z.redraw) Z.redraw();
 }
 
-return { scene, relayout, eli: () => Z.eli, test: { judge, FREE_MAP } };   // test — для проверки из консоли
+return { scene, relayout, eli: () => Z.eli, test: { judge, FREE_MAP, prep, drawMol, defs, molBox, ST0, SUB } };   // test — для проверки и tools/atoms.html
 })();
