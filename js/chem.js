@@ -317,7 +317,7 @@ function drawMol(M, st, vis, over) {              // over — позиции а�
         const e0 = palm(w[0], w[1], ha);
         const e1 = b.n === 1 ? [c[0] + px * 9 * sgn, c[1] + py * 9 * sgn] : [cl[0] - ux * 8 * sgn, cl[1] - uy * 8 * sgn];
         tp += electron(lerp(e0[0], e1[0], st.join), lerp(e0[1], e1[1], st.join));
-        if (st.join < 1) tp += slot(Pi.x, Pi.y, a.r, th + (off >= 0 ? 0.45 : -0.45) * sgn, 0.75 * (1 - st.join));   // пустое место — ждёт электрон соседа
+        if (st.reach < 0.5) tp += slot(Pi.x, Pi.y, a.r, th + (off >= 0 ? 0.45 : -0.45) * sgn, 0.75 * (1 - 2 * st.reach));   // пустое место — ждёт электрон соседа; гаснет, как только руки тянутся (иначе похоже на лишний электрон)
       }
     }
   }
@@ -341,7 +341,7 @@ function drawMol(M, st, vis, over) {              // over — позиции а�
     }
     if (show(b.b)) {                                 // у принимающего: свой одиночный электрон и пустое место рядом
       el += wrap(b.b, electron(A0.x + Math.cos(ac.ionA + gap) * (ac.r + 15), A0.y + Math.sin(ac.ionA + gap) * (ac.r + 15)));
-      if (st.fly < 1) el += wrap(b.b, slot(A0.x, A0.y, ac.r, slotA, 0.75 * (1 - clamp(st.fly * 3 - 2))));
+      if (st.wOut < 1 && st.fly <= 0) el += wrap(b.b, slot(A0.x, A0.y, ac.r, slotA, 0.75 * (1 - st.wOut)));   // пустое место гаснет, пока натрий тянет руку — до полёта (автор видела «маленький третий электрон»)
     }
     if (st.sign > 0 && show(b.a) && show(b.b)) {     // «+» и «−» над головами и пружинка между ними (дрожит, пока натянута)
       const bN = turn([D0.x, D0.y - dn.r - 52], b.a), bC = turn([A0.x, A0.y - ac.r - 52], b.b);
