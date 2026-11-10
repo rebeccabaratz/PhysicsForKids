@@ -161,6 +161,7 @@ button:focus-visible{outline:3px solid #fff;outline-offset:3px}
   text-shadow:0 1px 3px rgba(0,0,0,.55);font-family:var(--font)}
 .pt.p{background:radial-gradient(circle at 35% 30%,#ffd9bd,#ff5a2a 45%,#b8250f 88%);box-shadow:0 0 10px rgba(255,90,40,.55)}
 .pt.n{background:radial-gradient(circle at 35% 30%,#ffffff,#b9bcc6 45%,#767a86 88%);box-shadow:0 0 6px rgba(200,205,220,.35)}
+.pt.eslot{border:2px dashed rgba(170,215,255,.8);box-sizing:border-box;background:rgba(80,150,255,.08)}   /* пустое место для электрона */
 .pt.e{background:radial-gradient(circle at 35% 35%,#e8f8ff,#3fb6ff 45%,#1466c8 85%);box-shadow:0 0 14px #4cc2ff}
 .thread{position:absolute;left:0;top:-3px;height:6px;border-radius:3px;transform-origin:0 50%;opacity:0;
   background:linear-gradient(90deg,#ff7a50,#7fd4ff);box-shadow:0 0 14px #ffd2a0}

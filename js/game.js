@@ -410,12 +410,15 @@ async function fastCuts() {
 /* ===================== СОБЕРИ АТОМ ===================== */
 /* В корзинках по 8 шариков: слева протоны (+), справа электроны (−). Шарик летит в атом,
    нейтроны добавляются сами (NEUT[p] — самые распространённые изотопы: He-4, Li-7, Be-9, B-11, C-12, N-14, O-16).
+   Про нейтроны — во вступлении (ядро гелия), в игре атом не останавливается.
+   На кольцах видны пустые места для электронов (2 и 8).
    Ребёнок нажимает на атом: не поровну — атом дрожит; поровну — сияет и показывает карточку;
    потом атом снова пустой. Открыты все 8 — сам переход к Эли.
    Электроны: 1-е кольцо до 2, 2-е кольцо до 8 (правило оболочек). */
 const NEUT = [0, 0, 2, 4, 5, 6, 6, 7, 8];
 const BIN = 8, SHAKE_MS = 1000;
 const ELN = ['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O'];
+const SLOT_ORD = [0, 4, 2, 6, 1, 5, 3, 7];          // порядок мест на 2-м кольце (из 8 по кругу): верх, низ, бока, потом пары
 let BS = null;
 const UNDO_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5 L3 10 L9 15" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 10 H14 a6 6 0 0 1 0 12 H10" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
 
@@ -432,7 +435,7 @@ async function buildScene() {
       <button class="bin e" id="binE" type="button" aria-label="${T.addE}"></button>
     </div>`;
   stage.appendChild(root);
-  BS = { root, p: 1, e: 1, hist: [], found: new Set(), busy: true, told: false, done: null };
+  BS = { root, p: 1, e: 1, hist: [], found: new Set(), busy: true, done: null, eslot: [] };
   for (const k of ['p', 'e']) {
     const bin = $(k === 'p' ? '#binP' : '#binE');
     for (let i = 0; i < BIN; i++) { const b = document.createElement('div'); b.className = 'pt ' + k; b.textContent = k === 'p' ? '+' : '−'; bin.appendChild(b); }
@@ -458,6 +461,16 @@ async function buildScene() {
   await wait(550);
   await emptyAtom();                               // шарики возвращаются в корзинки, атом пустой
   hideSay();
+  // нейтроны — во вступлении (в игре они добавляются сами, без остановки): на минуту — ядро гелия, 2 протона и 2 нейтрона
+  $('#charge').style.visibility = 'hidden';
+  BS.p = 2; renderAtom(); sfx('pop');
+  $('#nuc').animate([{ transform: 'scale(.3)', opacity: 0 }, { transform: 'scale(1.5)', opacity: 1 }], { duration: 450 * K, easing: 'ease-out', fill: 'forwards' });
+  await say(T.neutrons, { next: false });
+  if (!BS) return;
+  hideSay();
+  await $('#nuc').animate([{ transform: 'scale(1.5)', opacity: 1 }, { transform: 'scale(.3)', opacity: 0 }], { duration: 350 * K, fill: 'forwards' }).finished.catch(() => {});
+  $('#nuc').getAnimations().forEach(a => a.cancel());
+  BS.p = 0; renderAtom(); $('#charge').style.visibility = '';
   await say(T.buildHelp, { next: false });         // пока Атом объясняет задание, всё стоит
   if (!BS) return;
   hideSay();
@@ -519,17 +532,26 @@ function renderAtom() {
       nuc.appendChild(el);
     });
   }
-  const shells = [[r1, Math.min(e, 2), '7s'], [r2, Math.max(0, e - 2), '11s']];
-  shells.forEach(([r, n, t], si) => {
-    if (si === 1 && n === 0) return;
+  // на кольцах видны пустые места: на 1-м — 2, на 2-м — 8 (ребёнок видит, сколько влезает, без объяснений).
+  // 2-е кольцо появляется, когда 1-е заполнено. Электроны садятся в места по порядку SLOT_ORD: сначала по одному
+  // на каждую сторону, потом парами (как в схемах Льюиса). Что на самом деле: электроны не сидят в точках
+  // и не бегают по кругу — это облака; «8 мест» — правило октета для 2-го слоя (2s + 2p).
+  BS.eslot = [];                                   // места в порядке заполнения: 0–1 на 1-м кольце, 2–9 на 2-м
+  const shells = [[r1, 2, Math.min(e, 2), '7s'], [r2, 8, Math.max(0, e - 2), '11s']];
+  shells.forEach(([r, cap, n, t], si) => {
+    if (si === 1 && e < 2) return;
     const ring = document.createElement('div'); ring.className = 'ring2d';
     ring.style.width = ring.style.height = 2 * r + 'px'; aw.appendChild(ring);
     const sh = document.createElement('div'); sh.className = 'shell'; sh.style.setProperty('--t', t);
-    for (let i = 0; i < n; i++) {
-      const ang = -Math.PI / 2 + i * 2 * Math.PI / n, el = document.createElement('div'); el.className = 'pt e';
+    const ord = si === 0 ? [0, 1] : SLOT_ORD;
+    for (let i = 0; i < cap; i++) {
+      const ang = -Math.PI / 2 + ord[i] * 2 * Math.PI / cap, el = document.createElement('div');
       Object.assign(el.style, { width: es + 'px', height: es + 'px', left: (r * Math.cos(ang) - es / 2) + 'px', top: (r * Math.sin(ang) - es / 2) + 'px', fontSize: es * 0.8 + 'px' });
-      el.textContent = '−'; sh.appendChild(el);
-      if ((si === 0 ? i : 2 + i) >= p) { el.classList.add('extra'); el.onclick = () => removeElectron(el); }
+      if (i < n) {
+        el.className = 'pt e'; el.textContent = '−';
+        if ((si === 0 ? i : 2 + i) >= p) { el.classList.add('extra'); el.onclick = () => removeElectron(el); }
+      } else el.className = 'pt eslot';            // пустое место
+      sh.appendChild(el); BS.eslot.push(el);
     }
     if (si === 0) BS.shell1 = sh;
     aw.appendChild(sh);
@@ -556,15 +578,15 @@ async function fly(kind, [fx, fy], [tx, ty], sz) {
     { duration: 520 * K, easing: 'ease-in-out' }).finished.catch(() => {});
   f.remove();
 }
-const atomTarget = kind => [BS.cx, kind === 'p' ? BS.cy : BS.cy - (BS.e < 2 ? BS.r1 : BS.r2)];
+const atomTarget = (kind, i = BS[kind]) => kind === 'p' || !BS.eslot[i] ? [BS.cx, kind === 'p' ? BS.cy : BS.cy - (i < 2 ? BS.r1 : BS.r2)] : centerOf(BS.eslot[i]);
 
 async function emptyAtom() {                       // все шарики из атома возвращаются в корзинки
   const flights = [];
   for (const k of ['p', 'e']) {
     const bin = $(k === 'p' ? '#binP' : '#binE');
     for (let i = 0; i < BS[k]; i++) {
-      const slot = bin.children[BIN - BS[k] + i];
-      flights.push(wait(i * 70).then(() => fly(k, atomTarget(k), centerOf(slot), k === 'p' ? 28 : BS.es)));
+      const slot = bin.children[BIN - BS[k] + i], from = atomTarget(k, i);
+      flights.push(wait(i * 70).then(() => fly(k, from, centerOf(slot), k === 'p' ? 28 : BS.es)));
     }
   }
   BS.p = 0; BS.e = 0; BS.hist = []; renderAtom();
@@ -587,12 +609,6 @@ async function addParticle(kind) {
   await fly(kind, from, atomTarget(kind), kind === 'p' ? 30 : BS.es);
   if (!BS) return;
   BS[kind]++; BS.hist.push(kind); renderAtom();
-  if (kind === 'p' && NEUT[BS.p] > 0 && !BS.told) {   // первый нейтрон: пока звучит «нейтроны — как клей», всё стоит
-    BS.told = true;
-    await say(T.neutrons, { next: false });
-    if (!BS) return;
-    hideSay();
-  }
   BS.busy = false;
 }
 
@@ -611,7 +627,7 @@ async function undoParticle() {
   if (!BS || BS.busy || BS.finished || !BS.hist.length) return;
   const k = BS.hist.pop(); BS.busy = true;
   const bin = $(k === 'p' ? '#binP' : '#binE'), slot = bin.children[BIN - BS[k]];
-  const from = atomTarget(k); BS[k]--; renderAtom(); sfx('fall');
+  const from = atomTarget(k, BS[k] - 1); BS[k]--; renderAtom(); sfx('fall');
   await fly(k, from, centerOf(slot), k === 'p' ? 28 : BS.es);
   syncBins(); BS.busy = false;
 }
