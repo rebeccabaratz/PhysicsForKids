@@ -13,7 +13,7 @@
      KIDS.mouth(имя, открыт), KIDS.chew(имя), KIDS.el(имя), KIDS.clear() */
 const KIDS = (() => {
   const FIG = { arbel: 0.0703, beeri: 0.0347, lael: 0.079, shaked: 0.0729 };
-  const FOOT = 1092 / 1152, FLAP_MS = 150, ANIM_MS = 3000, IDLE_MS = [3500, 9000];
+  const FOOT = 1092 / 1152, FLAP_MS = 150, ANIM_MS = 3000, IDLE_MS = [8000, 16000];
   const el = {}, st = {}, blob = {};
   const src = (n, s = '') => `img/kids/${n}${s}.webp`;
   const sleep = ms => new Promise(r => setTimeout(r, ms));
