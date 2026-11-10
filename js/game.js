@@ -180,7 +180,6 @@ function measure() {
   L.nucY = H * 0.865; L.nuc = Math.min(H * 0.06, W * 0.15);
   L.riverY = H * 0.945; L.tap = Math.max(66, L.ph * 1.8);
   L.appleY = H * 0.53; L.apple = Math.min(W * 0.46, H * 0.26);
-  L.monY = H * 0.76; L.mon = Math.min(W * 0.3, H * 0.17);
 }
 const yLevel = n => L.lv[n];
 function yOfE(E) {                               // высота на экране для энергии E (между ступеньками — линейно)
@@ -231,7 +230,7 @@ function setCount(n) {
 }
 function placeCounter() {                         // цифра разрезов всегда выше самой верхней точки ножика
   const c = $('#counter'), knifeTop = L.appleY - L.apple * 0.55 - L.apple * 0.31;
-  c.style.top = Math.max(100, Math.min(H * 0.19, knifeTop - c.offsetHeight - 8)) + 'px';
+  c.style.top = Math.max(phase === 'A' && P.SHOW_TEXT ? 166 : 100, Math.min(H * 0.19, knifeTop - c.offsetHeight - 8)) + 'px';
 }
 function tag(text, x, y) {
   const d = document.createElement('div'); d.className = 'tag'; d.textContent = text; stage.appendChild(d);
@@ -323,39 +322,95 @@ function sizeStr(n) {
 }
 
 /* ===================== ЧАСТЬ А: ЯБЛОКО ===================== */
+/* Внуки у стола (STORY.md; расстановка — проба чата для экрана 390×844): разговор «איפה אלי?», все смеются,
+   первый разрез делает Лаэль, половинки едят Арбель (левые) и Шакед (правые); дальше режет ребёнок.
+   Координаты — как на экране 390×844 (яблоко там в (195, 447) шириной 179 px); на другом экране
+   всё масштабируется вокруг яблока (AD). Клетка — после 9 разрезов (8 см / 2⁹ ≈ 0,16 мм): клетки мякоти яблока
+   около 0,15–0,25 мм (микро-КТ, BMC Plant Methods 2009), то есть как мелкая песчинка (0,1–0,25 мм). */
 let A = {};
-function layoutA() {
-  if (A.monG) put(A.monG, W * 0.2, L.monY, A.monG._k);
-  if (A.monO) put(A.monO, W * 0.8, L.monY, A.monO._k);
-  if (A.piece) put(A.piece, W / 2, L.appleY, A.piece._k, A.piece._ex);
-  if (A.knife && !A.knifeBusy) put(A.knife, W / 2 + L.apple * 0.62, L.appleY - L.apple * 0.3);
+const AU = () => L.apple / 179;                     // масштаб относительно экрана 390×844
+const AD = (x, y) => [W / 2 + (x - 195) * AU(), L.appleY + (y - 447) * AU()];
+const KID_AT = {                                    // середина, макушка, рост, слой, [за столом — ниже не видно] (на экране 390×844)
+  lael: [277, 225, 420, 1, 600], beeri: [166, 262, 440, 2, 600], arbel: [62, 372, 375, 3], shaked: [328, 352, 395, 3],
+};
+const MOUTH = { arbel: [82, 456], shaked: [312, 436] };   // куда летят половинки
+const KNIFE_AT = [205, 566];                        // ножик лежит на столе перед яблоком
+function drawTable() {                              // стол со скатертью и доска (как в пробе чата); слой 4 — под яблоком, над детьми
+  const y0 = 468, y1 = 592, xb = 100, xf = 78, y2 = y1 + 62, floor = 790, w = 390;
+  let wave = `M${xf} ${y1}`; for (let x = xf; x <= w - xf; x += 22) wave += ` L${x} ${y2 + (Math.round((x - xf) / 22) % 2 ? 6 : 0)}`; wave += ` L${w - xf} ${y2} L${w - xf} ${y1} Z`;
+  const [ox, oy] = AD(0, 0), u = AU();
+  const t = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); t.id = 'atable';
+  t.innerHTML = `<defs><linearGradient id="atcl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#efe3cf"/><stop offset="1" stop-color="#fbf4e8"/></linearGradient>
+    <linearGradient id="atdr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e7d6bb"/><stop offset="1" stop-color="#d9c4a2"/></linearGradient>
+    <linearGradient id="atlg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a5326"/><stop offset=".5" stop-color="#a8673a"/><stop offset="1" stop-color="#7a4520"/></linearGradient>
+    <pattern id="atck" width="22" height="22" patternUnits="userSpaceOnUse"><rect width="11" height="11" fill="#e46a6a" opacity=".16"/><rect x="11" y="11" width="11" height="11" fill="#e46a6a" opacity=".16"/></pattern></defs>
+    <g transform="translate(${ox} ${oy}) scale(${u})">
+    <ellipse cx="195" cy="${floor}" rx="175" ry="12" fill="#000" opacity=".3"/>
+    <rect x="${xf + 14}" y="${y2 - 6}" width="16" height="${floor - y2 + 2}" rx="5" fill="url(#atlg)"/><rect x="${w - xf - 30}" y="${y2 - 6}" width="16" height="${floor - y2 + 2}" rx="5" fill="url(#atlg)"/>
+    <path d="M${xb} ${y0} H${w - xb} L${w - xf} ${y1} H${xf} Z" fill="url(#atcl)" stroke="#d8c6a8" stroke-width="1.2"/><path d="M${xb} ${y0} H${w - xb} L${w - xf} ${y1} H${xf} Z" fill="url(#atck)"/>
+    <path d="${wave}" fill="url(#atdr)"/><path d="${wave}" fill="url(#atck)"/>
+    <ellipse cx="195" cy="532" rx="104" ry="20" fill="#b9783d"/><ellipse cx="195" cy="528" rx="100" ry="17" fill="#d89a58"/></g>`;
+  stage.appendChild(t); return t;
 }
+function placeKids() {
+  KIDS.clear();
+  for (const [n, [x, top, h, z, clip]] of Object.entries(KID_AT)) {
+    const [px, py] = AD(x, top);
+    KIDS.add(n, { x: px, top: py, h: h * AU(), z, clip: clip && AD(0, clip)[1] });
+  }
+  for (const [n, [x, y]] of Object.entries(MOUTH)) A[n] = AD(x, y);
+}
+const restY = k => L.appleY + 0.45 * L.apple * (1 - k);   // кусочек лежит на доске (низ целого яблока — на доске)
+function knifeRest() { const [x, y] = AD(...KNIFE_AT); put(A.knife, x, y, 0.85, 'rotate(45deg)'); }
+function placeHalo() {                              // золотое мерцание под ножиком: на светлой скатерти свечения ножика почти не видно
+  const [x, y] = AD(...KNIFE_AT), u = AU();
+  Object.assign(A.halo.style, { left: (x - 70 * u) + 'px', top: (y - 40 * u) + 'px', width: 140 * u + 'px', height: 80 * u + 'px' });
+}
+function layoutA() {
+  if (A.table) { A.table.remove(); A.table = drawTable(); placeKids(); }
+  if (A.piece) put(A.piece, W / 2, restY(A.piece._k), A.piece._k, A.piece._ex);
+  if (A.knife && !A.knifeBusy && !A.knifeUp) knifeRest();
+  if (A.halo) placeHalo();
+}
+const kl = ([n, t]) => KIDS.talk(n, t);
 async function partA() {
   phase = 'A'; setLabel(T.appleLabel);
-  A.monG = sprite('monster_green'); setB(A.monG, L.mon); A.monG._open = 'monster_green'; A.monG._shut = 'monster_green_chew';
-  A.monO = sprite('monster_orange'); setB(A.monO, L.mon); A.monO._open = 'monster_orange'; A.monO._shut = 'monster_orange_chew';
+  const KA = T.kidsApple;
+  A.table = drawTable(); placeKids();
   A.piece = sprite('apple_1'); setB(A.piece, L.apple);
   A.knife = sprite('knife', 'front'); setB(A.knife, L.apple * 0.62);
-  put(A.piece, W / 2, L.appleY); layoutA();
+  A.halo = document.createElement('div'); A.halo.id = 'khalo'; stage.appendChild(A.halo); placeHalo();
+  put(A.piece, W / 2, L.appleY); knifeRest();
   setCount(0);
   A.ask = document.createElement('div'); A.ask.id = 'ask'; A.ask.textContent = T.appleAsk; stage.appendChild(A.ask);
-  await say(T.appleAsk, { next: false });         // «Где Эли?» — крупно посередине; ножик зовёт резать, когда вопрос дозвучит
+  if (P.SHOW_TEXT) A.ask.style.top = '116px';      // пока фразы видны текстом — «איפה אלי?» ниже них (и цифра разрезов ниже)
+  await wait(600);
+  for (const l of KA.intro) { if (l[0] === 'shaked') KIDS.hop('shaked', 12); await kl(l); }
+  hideSay();
+  await KIDS.laugh(['lael', 'beeri', 'arbel', 'shaked']);   // все смеются
+  KIDS.hop('lael', 22); await kl(KA.what);
+  await kl(KA.maybe);
+  await kl(KA.go);
+  hideSay();
+  KIDS.lean('lael', -6);                           // первый разрез делает Лаэль: наклоняется к яблоку
+  await wait(200);
+  await cutOnce(1);
   for (let i = 1; i <= P.MANUAL_CUTS; i++) {
-    await knifeTap(0);
-    await cutOnce(i);
+    if (i > 1) { await knifeTap(0); hideSay(); await cutOnce(i); }
+    for (const l of KA.cut[i]) await kl(l);
   }
   hideSay();
   await fastCuts();                                // дальше режем тоже нажатием на ножик: за нажатие — несколько разрезов
 }
 async function knifeTap(delay) {                   // ножик светится и ждёт нажатия (через delay мс)
   await wait(delay);
-  A.knife.classList.add('tappable');
+  A.knife.classList.add('tappable'); if (A.halo && !A.knifeUp) A.halo.classList.add('on');
   await tapOn(A.knife);
-  A.knife.classList.remove('tappable');
+  A.knife.classList.remove('tappable'); if (A.halo) A.halo.classList.remove('on');
 }
 async function cutOnce(i) {
-  const cx = W / 2, kn = A.knife, k0x = kn._x, k0y = kn._y; A.knifeBusy = true;
-  await go(kn, { x: cx + L.apple * 0.1, y: L.appleY - L.apple * 0.55, ms: 280 });
+  const cx = W / 2, kn = A.knife; A.knifeBusy = true;
+  await go(kn, { x: cx + L.apple * 0.1, y: L.appleY - L.apple * 0.55, k: 1, ex: '', ms: 320 });   // ножик встаёт над яблоком
   await go(kn, { y: L.appleY + L.apple * 0.35, ms: 200, easing: 'ease-in' });
   // 1/2, 1/4, 1/8 — свои картинки; дальше — та же восьмушка, но меньше
   const img = i <= 3 ? 'apple_' + 2 ** i : 'apple_8';
@@ -363,22 +418,27 @@ async function cutOnce(i) {
   setCount(i); sfx('cut');
   A.piece.remove();
   const a = sprite(img), b = sprite(img); setB(a, L.apple); setB(b, L.apple);
-  put(a, cx, L.appleY, k, 'scaleX(-1)'); put(b, cx, L.appleY, k);
-  go(kn, { x: k0x, y: k0y, ms: 350 }).then(() => A.knifeBusy = false);
-  await Promise.all([go(a, { x: cx - W * 0.17, ms: 320 }), go(b, { x: cx + W * 0.17, ms: 320 })]);
-  const left = i % 2 === 1, eaten = left ? a : b, keep = left ? b : a, mon = left ? A.monG : A.monO;
-  mouthOpen(mon);                                  // открывает рот навстречу кусочку
-  await go(eaten, { x: mon._x + (left ? 1 : -1) * L.mon * 0.05, y: mon._y + L.mon * 0.12, k: k * 0.2, ms: 450, easing: 'ease-in' });
-  eaten.remove(); chew(mon);
+  put(a, cx, restY(k), k, 'scaleX(-1)'); put(b, cx, restY(k), k);
+  const [rx, ry] = AD(...KNIFE_AT);
+  go(kn, { x: rx, y: ry, k: 0.85, ex: 'rotate(45deg)', ms: 380 }).then(() => A.knifeBusy = false);   // ложится обратно на стол
+  const sp = 43 * AU();                            // половинки расходятся недалеко: иначе правая закрывает лицо Шакеда
+  await Promise.all([go(a, { x: cx - sp, ms: 320 }), go(b, { x: cx + sp, ms: 320 })]);
+  const left = i % 2 === 1, eaten = left ? a : b, keep = left ? b : a, who = left ? 'arbel' : 'shaked', [mx, my] = A[who];
+  if (i === 2) await kl(T.kidsApple.me);
+  KIDS.mouth(who, true);                           // открывает рот навстречу кусочку
+  await go(eaten, { x: mx, y: my, k: k * 0.2, ms: 450, easing: 'ease-in' });
+  eaten.remove(); const ch = KIDS.chew(who);
   await go(keep, { x: cx, ms: 380 });
   A.piece = keep;
+  if (i === 2) { await ch; await kl(T.kidsApple.yum); }
 }
 async function fastCuts() {
   hideSay();
-  const cx = W / 2, stops = { 13: ['cell', T.cell], 27: ['molecule', T.molecule] };
-  const kn = A.knife; A.knifeBusy = true;
+  const KA = T.kidsApple, cx = W / 2, stops = { 9: ['cell', KA.cell], 27: ['molecule', KA.mol] };
+  const kn = A.knife;
   await knifeTap(0);
-  await go(kn, { x: cx + L.apple * 0.08, y: L.appleY - L.apple * 0.5, ms: 260 });
+  A.knifeBusy = A.knifeUp = true;
+  await go(kn, { x: cx + L.apple * 0.08, y: L.appleY - L.apple * 0.5, k: 1, ex: '', ms: 260 });
   let n = P.MANUAL_CUTS + 1, pause = 0;
   while (n <= P.TOTAL_CUTS) {
     if (n > P.MANUAL_CUTS + 1) { await knifeTap(pause); hideSay(); }   // каждое нажатие — CUTS_PER_TAP разрезов
@@ -387,14 +447,14 @@ async function fastCuts() {
       setCount(n); sfx('cut');
       const base = tf(kn);
       kn.animate([{ transform: base }, { transform: base + ` translateY(${L.apple * 0.6}px)` }, { transform: base }], { duration: P.FAST_CUT_MS * 0.9 * K });
-      go(A.piece, { k: A.piece._k * 0.88, ms: P.FAST_CUT_MS });
+      go(A.piece, { k: A.piece._k * 0.88, y: restY(A.piece._k * 0.88), ms: P.FAST_CUT_MS });
       await wait(P.FAST_CUT_MS);
       if (stops[n]) {
         A.piece.remove();
         A.piece = sprite(stops[n][0]); setB(A.piece, L.apple * 1.05); put(A.piece, cx, L.appleY, 0.15);
         sfx('sparkle');
         await go(A.piece, { k: 1, ms: 550, easing: 'cubic-bezier(.3,1.6,.5,1)' });
-        await say(stops[n][1], { next: false });   // ножик снова зовёт, когда фраза дозвучит
+        for (const l of stops[n][1]) await kl(l);  // ножик снова зовёт, когда дети договорят
         pause = P.STOP_TAP_MS;                     // пауза, чтобы успеть разглядеть клетку / молекулу
         n++; break;
       }
@@ -402,7 +462,8 @@ async function fastCuts() {
   }
   hideSay();
   await flash();
-  for (const el of [A.monG, A.monO, A.piece, A.knife, A.ask]) el.remove();
+  for (const el of [A.table, A.halo, A.piece, A.knife, A.ask]) el.remove();
+  KIDS.clear();
   $('#counter').hidden = true;
   A = {};
 }
@@ -3047,7 +3108,7 @@ async function runFrom(name) {
 
 /* ===================== СТАРТ ===================== */
 const ALL = ['bg_space', 'eli_hello', 'eli_surprised', 'eli_jump', 'eli_hold', 'eli_medal', 'eli_open', 'eli_full', 'eli_blow',
-  'apple_1', 'apple_2', 'apple_4', 'apple_8', 'knife', 'monster_green', 'monster_orange', 'monster_green_chew', 'monster_orange_chew',
+  'apple_1', 'apple_2', 'apple_4', 'apple_8', 'knife', ...['lael', 'beeri', 'arbel', 'shaked'].flatMap(n => ['kids/' + n, 'kids/' + n + '_open']),
   'cell', 'molecule', 'nucleus', 'badge', ...Object.values(PH).map(p => p.img), ...[1, 2, 3, 4, 5, 6, 7, 8].map(i => 'card_' + i)];
 function preload() {
   return Promise.all(ALL.map(n => new Promise(r => { const i = new Image(); i.onload = i.onerror = r; i.src = `img/${n}.webp`; })));

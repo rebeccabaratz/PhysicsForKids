@@ -28,6 +28,14 @@ body{
 #stage{position:relative;height:100%;width:100%;max-width:680px;margin:0 auto;overflow:hidden}
 .spr{position:absolute;left:0;top:0;transform-origin:50% 50%;pointer-events:none;z-index:5}
 .spr.front{z-index:14}
+/* внуки (js/kids.js) и стол в сцене с яблоком */
+.kid{position:absolute;pointer-events:none;transform-origin:50% 100%}
+#atable{position:absolute;left:0;top:0;width:100%;height:100%;z-index:4;pointer-events:none;overflow:visible}
+#khalo{position:absolute;z-index:6;pointer-events:none;border-radius:50%;opacity:0;
+  background:radial-gradient(closest-side,rgba(255,212,90,.95),rgba(255,212,90,.45) 55%,rgba(255,212,90,0))}
+#khalo.on{animation:khalo 1.1s ease-in-out infinite}
+@keyframes khalo{0%,100%{opacity:.15}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){#khalo.on{animation:none;opacity:.8}}
 .spr.dream{z-index:4;animation:dream 1.4s ease-in-out infinite}
 @keyframes dream{0%,100%{opacity:.18}50%{opacity:.45}}
 .tappable{pointer-events:auto;cursor:pointer;animation:glow 1.1s ease-in-out infinite}
