@@ -123,9 +123,10 @@ document.documentElement.dir = LANG === 'he' ? 'rtl' : 'ltr';
 document.documentElement.lang = LANG;
 
 const T = LANG === 'he' ? T_HE : T_RU;
-// ?text в адресе — фразы вверху по-русски (если есть русский вариант), иначе на иврите
-const RU_TEXT = /[?&]text\b/.test(location.search);
-if (RU_TEXT) P.SHOW_TEXT = true;
+// фразы текстом вверху — по-русски (если есть русский вариант): текст только для автора, дети его не увидят (решение автора 2026-11-10);
+// ?hetext — текст на иврите; ?text — включить текст, даже если P.SHOW_TEXT = false
+if (/[?&]text\b/.test(location.search)) P.SHOW_TEXT = true;
+const RU_TEXT = P.SHOW_TEXT && !/[?&]hetext\b/.test(location.search);
 const RU_OF = new Map();                          // ивритская фраза → русская (одинаковые ключи в T_HE и T_RU)
 (function pair(h, r) {
   if (typeof h === 'string' && typeof r === 'string') { RU_OF.set(h, r); return; }
@@ -322,7 +323,7 @@ function sizeStr(n) {
 }
 
 /* ===================== ЧАСТЬ А: ЯБЛОКО ===================== */
-/* Внуки у стола (STORY.md; расстановка — проба чата для экрана 390×844): разговор «איפה אלי?», все смеются,
+/* Внуки у стола (STORY_RU.md, STORY_HE.md; расстановка — проба чата для экрана 390×844): разговор «איפה אלי?», все смеются,
    первый разрез делает Лаэль, половинки едят Арбель (левые) и Шакед (правые); дальше режет ребёнок.
    Координаты — как на экране 390×844 (яблоко там в (195, 447) шириной 179 px); на другом экране
    всё масштабируется вокруг яблока (AD). Клетка — после 9 разрезов (8 см / 2⁹ ≈ 0,16 мм): клетки мякоти яблока
@@ -385,10 +386,10 @@ async function partA() {
   A.ask = document.createElement('div'); A.ask.id = 'ask'; A.ask.textContent = T.appleAsk; stage.appendChild(A.ask);
   if (P.SHOW_TEXT) A.ask.style.top = '116px';      // пока фразы видны текстом — «איפה אלי?» ниже них (и цифра разрезов ниже)
   await wait(600);
-  for (const l of KA.intro) { if (l[0] === 'shaked') KIDS.hop('shaked', 12); await kl(l); }
+  for (const l of KA.intro) await kl(l);
   hideSay();
   await KIDS.laugh(['lael', 'beeri', 'arbel', 'shaked']);   // все смеются
-  KIDS.hop('lael', 22); await kl(KA.what);
+  await kl(KA.what);
   await kl(KA.maybe);
   await kl(KA.go);
   hideSay();

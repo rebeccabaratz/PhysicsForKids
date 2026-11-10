@@ -1,11 +1,11 @@
-/* Название: kids.js — внуки, герои рассказа (STORY.md): Лаэль, Беэри, Шакед, Арбель
+/* Название: kids.js — внуки, герои рассказа (STORY_RU.md, STORY_HE.md): Лаэль, Беэри, Шакед, Арбель
    Картинки — img/kids/: <имя>.webp (рот закрыт), <имя>_open.webp (рот открыт), <имя>_laugh.webp (смех, 3 с).
    Смех сделан из видео Higgsfield (Kling 3.0, первый и последний кадр — та же картинка), зелёный фон убран (ffmpeg chromakey);
    поэтому смех начинается и кончается точно в позе картинки. Оригиналы (PNG и MP4) — art/kids/.
    У всех картинок кадр 9:16 (360×640): фигура по центру, ноги на FOOT высоты кадра, макушка на FIG[имя].
    Пока озвучки нет, говорящий открывает и закрывает рот, пока видна его фраза (say из game.js).
    Наружу: KIDS.add(имя, {x, top, h, z, clip}) — поставить (x — середина, top — макушка, h — рост фигуры, clip — ниже этой высоты не видно; всё в px сцены),
-     KIDS.talk(имя, фраза), KIDS.lines([[имя, фраза], …]), KIDS.laugh([имена]), KIDS.hop(имя), KIDS.lean(имя, градусы),
+     KIDS.talk(имя, фраза), KIDS.lines([[имя, фраза], …]), KIDS.laugh([имена]), KIDS.lean(имя, градусы),
      KIDS.mouth(имя, открыт), KIDS.chew(имя), KIDS.el(имя), KIDS.clear() */
 const KIDS = (() => {
   const FIG = { arbel: 0.0703, beeri: 0.0347, lael: 0.079, shaked: 0.0729 };
@@ -30,7 +30,6 @@ const KIDS = (() => {
     const im = el[n]; if (!im) { await say(text, { next: false }); return; }
     let on = true;
     const flap = (async () => { let o = false; while (on && im.isConnected) { o = !o; mouth(n, o); await new Promise(r => setTimeout(r, FLAP_MS)); } mouth(n, false); })();
-    im.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-6px)' }, { transform: 'translateY(0)' }], { duration: 300 * K, easing: 'ease-out' });
     await say(text, { next: false });
     on = false; await flap;
   }
@@ -48,11 +47,6 @@ const KIDS = (() => {
       URL.revokeObjectURL(url);
     }));
   }
-  function hop(n, h = 18) {                        // подпрыгнуть от удивления
-    const im = el[n]; if (!im) return Promise.resolve();
-    return im.animate([{ transform: 'translateY(0)' }, { transform: `translateY(${-h}px)`, offset: 0.4 }, { transform: 'translateY(0)' }],
-      { duration: 450 * K, easing: 'ease-out' }).finished.catch(() => {});
-  }
   function lean(n, deg, ms = 1100) {               // наклониться к столу и выпрямиться (вращение вокруг ног)
     const im = el[n]; if (!im) return Promise.resolve();
     im.style.transformOrigin = `50% ${(im._foot - im.offsetTop)}px`;
@@ -64,5 +58,5 @@ const KIDS = (() => {
     mouth(n, false);
   }
   function clear() { for (const n of Object.keys(el)) { el[n].remove(); delete el[n]; } }
-  return { add, talk, lines, laugh, hop, lean, mouth, chew, clear, el: n => el[n] };
+  return { add, talk, lines, laugh, lean, mouth, chew, clear, el: n => el[n] };
 })();
