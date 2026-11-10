@@ -373,11 +373,38 @@ function layoutA() {
   if (A.knife && !A.knifeBusy && !A.knifeUp) knifeRest();
   if (A.halo) placeHalo();
 }
-const kl = ([n, t]) => KIDS.talk(n, t);
+const kl = ([n, t], o) => KIDS.talk(n, t, o);
+const ALL_KIDS = ['lael', 'beeri', 'arbel', 'shaked'];
+/* кулак Лаэль в анимации lael_cut (12 кадров/с; доли кадра 9:16), найден по цвету кожи в кадрах видео:
+   0,7 с — поднимает руку, 0,9–1,75 с — держит над яблоком, 1,8–2,1 с — опускает (разрез), дальше рука внизу */
+const FIST = [[.296, .538], [.296, .538], [.296, .538], [.296, .537], [.286, .54], [.251, .539], [.194, .515], [.175, .443], [.174, .38],
+  [.186, .345], [.199, .33], [.204, .325], [.204, .336], [.204, .335], [.197, .33], [.201, .334], [.201, .333], [.2, .33], [.2, .33],
+  [.199, .331], [.19, .338], [.174, .355], [.153, .396], [.171, .445], [.185, .514]];
+const GRIP = [-0.25, 0.22];                         // где рукоятка в картинке ножика (доля от середины)
+function knifeInFist(f, deg, k) {                   // ножик рукояткой в кулаке Лаэль, лезвие повёрнуто на deg
+  const kn = A.knife, [fx, fy] = FIST[f], [hx, hy] = KIDS.at('lael', fx, fy), a = deg * Math.PI / 180, b = kn._b * k;
+  const gx = GRIP[0] * b, gy = GRIP[1] * b;
+  put(kn, hx - (gx * Math.cos(a) - gy * Math.sin(a)), hy - (gx * Math.sin(a) + gy * Math.cos(a)), k, `rotate(${deg}deg)`);
+}
+async function laelStrike() {                       // Лаэль берёт ножик, поднимает и режет (ножик — в её кулаке)
+  const kn = A.knife, K0 = 0.72;
+  KIDS.look(['beeri', 'arbel', 'shaked'], true);
+  KIDS.play('lael', 'cut');
+  const t0 = performance.now(), fr = () => Math.floor((performance.now() - t0) / 1000 * 12);
+  while (fr() < 8) await new Promise(requestAnimationFrame);
+  // ножик со стола прыгает в руку, пока она поднимается
+  const [hx, hy] = KIDS.at('lael', ...FIST[10]);
+  await go(kn, { x: hx + 0.1 * kn._b, y: hy - 0.15 * kn._b, k: K0, ex: 'rotate(0deg)', ms: 220 });
+  for (;;) {                                        // держит над яблоком, потом — удар: лезвие поворачивается вниз
+    const f = fr(); if (f >= FIST.length) break;
+    knifeInFist(Math.max(f, 10), f < 20 ? 0 : Math.min(100, (f - 19) * 22), K0);
+    await new Promise(requestAnimationFrame);
+  }
+}
 async function partA() {
   phase = 'A'; setLabel(T.appleLabel);
   const KA = T.kidsApple;
-  A.table = drawTable(); placeKids();
+  KIDS.reset(); A.table = drawTable(); placeKids();
   A.piece = sprite('apple_1'); setB(A.piece, L.apple);
   A.knife = sprite('knife', 'front'); setB(A.knife, L.apple * 0.62);
   A.halo = document.createElement('div'); A.halo.id = 'khalo'; stage.appendChild(A.halo); placeHalo();
@@ -391,11 +418,9 @@ async function partA() {
   await KIDS.laugh(['lael', 'beeri', 'arbel', 'shaked']);   // все смеются
   await kl(KA.what);
   await kl(KA.maybe);
-  await kl(KA.go);
+  await kl(KA.go, { hands: true });                // единственный жест рукой в сцене
   hideSay();
-  KIDS.lean('lael', -6);                           // первый разрез делает Лаэль: наклоняется к яблоку
-  await wait(200);
-  await cutOnce(1);
+  await cutOnce(1, true);                          // первый разрез делает Лаэль
   for (let i = 1; i <= P.MANUAL_CUTS; i++) {
     if (i > 1) { await knifeTap(0); hideSay(); await cutOnce(i); }
     for (const l of KA.cut[i]) await kl(l);
@@ -409,10 +434,14 @@ async function knifeTap(delay) {                   // ножик светитс�
   await tapOn(A.knife);
   A.knife.classList.remove('tappable'); if (A.halo) A.halo.classList.remove('on');
 }
-async function cutOnce(i) {
+async function cutOnce(i, byLael) {
   const cx = W / 2, kn = A.knife; A.knifeBusy = true;
-  await go(kn, { x: cx + L.apple * 0.1, y: L.appleY - L.apple * 0.55, k: 1, ex: '', ms: 320 });   // ножик встаёт над яблоком
-  await go(kn, { y: L.appleY + L.apple * 0.35, ms: 200, easing: 'ease-in' });
+  if (byLael) await laelStrike();
+  else {
+    KIDS.look(ALL_KIDS, true);                     // пока режут — все смотрят на яблоко
+    await go(kn, { x: cx + L.apple * 0.1, y: L.appleY - L.apple * 0.55, k: 1, ex: '', ms: 320 });   // ножик встаёт над яблоком
+    await go(kn, { y: L.appleY + L.apple * 0.35, ms: 200, easing: 'ease-in' });
+  }
   // 1/2, 1/4, 1/8 — свои картинки; дальше — та же восьмушка, но меньше
   const img = i <= 3 ? 'apple_' + 2 ** i : 'apple_8';
   const k = (A.piece._k || 1) * 0.86 * (i >= 4 ? 0.6 : 1);
@@ -426,7 +455,7 @@ async function cutOnce(i) {
   await Promise.all([go(a, { x: cx - sp, ms: 320 }), go(b, { x: cx + sp, ms: 320 })]);
   const left = i % 2 === 1, eaten = left ? a : b, keep = left ? b : a, who = left ? 'arbel' : 'shaked', [mx, my] = A[who];
   if (i === 2) await kl(T.kidsApple.me);
-  KIDS.mouth(who, true);                           // открывает рот навстречу кусочку
+  KIDS.look([who], false); KIDS.mouth(who, true); // открывает рот навстречу кусочку
   await go(eaten, { x: mx, y: my, k: k * 0.2, ms: 450, easing: 'ease-in' });
   eaten.remove(); const ch = KIDS.chew(who);
   await go(keep, { x: cx, ms: 380 });
@@ -439,6 +468,7 @@ async function fastCuts() {
   const kn = A.knife;
   await knifeTap(0);
   A.knifeBusy = A.knifeUp = true;
+  KIDS.look(ALL_KIDS, true);
   await go(kn, { x: cx + L.apple * 0.08, y: L.appleY - L.apple * 0.5, k: 1, ex: '', ms: 260 });
   let n = P.MANUAL_CUTS + 1, pause = 0;
   while (n <= P.TOTAL_CUTS) {
@@ -456,6 +486,7 @@ async function fastCuts() {
         sfx('sparkle');
         await go(A.piece, { k: 1, ms: 550, easing: 'cubic-bezier(.3,1.6,.5,1)' });
         for (const l of stops[n][1]) await kl(l);  // ножик снова зовёт, когда дети договорят
+        KIDS.look(ALL_KIDS, true);
         pause = P.STOP_TAP_MS;                     // пауза, чтобы успеть разглядеть клетку / молекулу
         n++; break;
       }
@@ -464,7 +495,7 @@ async function fastCuts() {
   hideSay();
   await flash();
   for (const el of [A.table, A.halo, A.piece, A.knife, A.ask]) el.remove();
-  KIDS.clear();
+  KIDS.reset();
   $('#counter').hidden = true;
   A = {};
 }
@@ -3109,7 +3140,7 @@ async function runFrom(name) {
 
 /* ===================== СТАРТ ===================== */
 const ALL = ['bg_space', 'eli_hello', 'eli_surprised', 'eli_jump', 'eli_hold', 'eli_medal', 'eli_open', 'eli_full', 'eli_blow',
-  'apple_1', 'apple_2', 'apple_4', 'apple_8', 'knife', ...['lael', 'beeri', 'arbel', 'shaked'].flatMap(n => ['kids/' + n, 'kids/' + n + '_open']),
+  'apple_1', 'apple_2', 'apple_4', 'apple_8', 'knife', ...['lael', 'beeri', 'arbel', 'shaked'].flatMap(n => ['kids/' + n, 'kids/' + n + '_open', 'kids/' + n + '_look']),
   'cell', 'molecule', 'nucleus', 'badge', ...Object.values(PH).map(p => p.img), ...[1, 2, 3, 4, 5, 6, 7, 8].map(i => 'card_' + i)];
 function preload() {
   return Promise.all(ALL.map(n => new Promise(r => { const i = new Image(); i.onload = i.onerror = r; i.src = `img/${n}.webp`; })));
