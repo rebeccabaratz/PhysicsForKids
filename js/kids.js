@@ -8,7 +8,9 @@
    (arbel.webp) — говорит (talk2), ест (_open, chew), смотрит на яблоко (_look — кадр 45 arbel_lookidle.mp4, lookidle; _open — кадр 51 arbel_talk2.mp4), смеётся (laugh). Анфас — моргает
    (arbel_blink), отводит глаза в сторону и обратно (arbel_glancef), смотрит вверх и обратно (arbel_upf) — из круга глазами, смеётся (arbel_laughf). Всё из видео art/kids/arbel_*.mp4.
    Кто-то говорит — остальные смотрят на него (GAZE): картинки с головой и глазами, повёрнутыми к говорящему.
-   arbel_chew.webp, shaked_chew.webp — жуёт (1,9 с): начало их «говорит» вперёд и назад, поэтому кончается в позе картинки.
+   arbel_eat.webp, shaked_eat.webp — берёт кусочек рукой, откусывает, жуёт с закрытым ртом (3 с; кусочек в руке — с кадра HAND[имя][2]).
+   beeri_turnA / beeri_turnAback — Беэри плавно поворачивает голову к Арбелю и обратно (1,5 с, видео от картинки до _toA).
+   arbel_chew.webp, shaked_chew.webp (запас) — жуёт (1,9 с): начало их «говорит» вперёд и назад, поэтому кончается в позе картинки.
    Анимации по 3 с: <имя>_talk.webp (говорит и показывает рукой — один раз за сцену, {hands: true}),
    <имя>_talk2.webp (говорит: голова и рот, руки спокойно), <имя>_idle.webp (молчит: моргает, дышит),
    <имя>_lookidle.webp (смотрит на яблоко и моргает), <имя>_laugh.webp (смеётся), lael_cut.webp (Лаэль режет).
@@ -29,7 +31,7 @@ const KIDS = (() => {
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
   const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_glance']], [['lael', '_right']]];
   const FRONT = { arbel: true };                   // стоит анфас; к столу — видео turn, обратно — back (st.side — повёрнут к столу)
-  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_upf: 2580, arbel_lookidle: 1670, lael_right: 3080 };
+  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_upf: 2580, beeri_turnA: 1580, beeri_turnAback: 1580, arbel_lookidle: 1670, lael_right: 3080 };
   const FRONT_ANIMS = ['blink', 'glancef', 'upf', 'turn', 'back', 'peek', 'laughf'];
   const FRONT_IDLE_MS = [3500, 7000];             // анфас Арбель двигается чаще: у него движения короче (1–3 с), чем «стоит» у остальных
   // куда смотрит слушатель, когда говорит [кто]: суффикс картинки; 'side' — Арбель поворачивает голову к столу (там все); нет — не меняется
@@ -40,6 +42,7 @@ const KIDS = (() => {
     arbel: { lael: '_up', beeri: '_up', shaked: '_right' },                               // вправо-вверх 36° и 45°; вправо прямо
     shaked: { lael: '_toL', beeri: '_toB' } };                                            // влево-вверх 60°; влево, чуть вверх; на Арбеля — и так влево
   const GAZE_KEEP_MS = 2500;                       // после фразы ещё столько смотрят на говорившего (вдруг заговорит следующий)
+  const HAND = { arbel: [0.363, 0.585, 500], shaked: [0.278, 0.58, 420] };   // где в кадре рука с кусочком и через сколько мс она там (видео eat)
   const ANIMS = ['talk2', 'idle', 'lookidle', 'laugh'];   // заранее; «talk» (с жестом) — когда понадобится
   const el = {}, st = {}, blob = {};
   const src = (n, s = '') => `img/kids/${n}${s}.webp`;
@@ -59,7 +62,8 @@ const KIDS = (() => {
     // анимации — файлами в память один раз; каждый показ — новый адрес, чтобы анимация шла с первого кадра
     for (const k of ANIMS) load(n, k);
     if (n === 'lael') load(n, 'cut');
-    if (n === 'arbel' || n === 'shaked') load(n, 'chew');
+    if (n === 'arbel' || n === 'shaked') load(n, 'eat');
+    if (n === 'beeri') { load(n, 'turnA'); load(n, 'turnAback'); }
     if (FRONT[n]) { for (const a of FRONT_ANIMS) load(n, a); new Image().src = src(n, '_front'); new Image().src = src(n); }
     for (const g of Object.values(GAZE[n] || {})) if (g !== 'side') new Image().src = src(n, g);
     new Image().src = src(n, '_glance'); if (n === 'lael') { load(n, 'right'); new Image().src = src(n, '_toright'); }
@@ -171,8 +175,12 @@ const KIDS = (() => {
     for (const m of Object.keys(el)) {
       const s = st[m], g = who && m !== who ? GAZE[m][who] || null : null;
       if (s.gaze === g || s.talkN) continue;
-      s.gaze = g;
+      const was = s.gaze; s.gaze = g;
       if (g === 'side') { face(m); continue; }
+      if (m === 'beeri' && !s.look && !s.chewing && !s.cur) {   // Беэри к Арбелю и обратно — плавно, видео
+        if (g === '_toA') { play(m, 'turnA', { end: '_toA' }); continue; }
+        if (was === '_toA') { play(m, 'turnAback', { via: '' }); continue; }
+      }
       if (s.look || s.chewing || s.cur) continue;  // занят (смотрит на яблоко, жуёт, анимация) — картинка сменится потом сама
       fadeTo(m, still(m));
       if (FRONT[m] && !g) home(m, 300);
@@ -212,6 +220,13 @@ const KIDS = (() => {
     return im.animate([{ transform: 'rotate(0)' }, { transform: `rotate(${deg}deg) translateY(4px)`, offset: 0.3 },
       { transform: `rotate(${deg}deg) translateY(4px)`, offset: 0.7 }, { transform: 'rotate(0)' }], { duration: ms * K, easing: 'ease-in-out' }).finished.catch(() => {});
   }
+  /* ест: видео «берёт рукой, откусывает, жуёт»; вернёт [x, y] руки на экране и через сколько мс кусочек должен быть там */
+  function eat(n) {
+    const s = st[n], [fx, fy, ms] = HAND[n];
+    s.chewing = true; s.look = false;
+    const done = play(n, 'eat').then(() => { if (st[n]) st[n].chewing = false; home(n); });
+    return { hand: at(n, fx, fy), ms, done };
+  }
   async function chew(n) {                         // жуёт: анимация из кадров видео; без неё — рот закрыт — открыт, три раза
     if (!RM && await load(n, 'chew')) {
       for (const t of [0, 600, 1200]) setTimeout(() => el[n] && sfx('chomp'), t);
@@ -224,5 +239,5 @@ const KIDS = (() => {
   function at(n, fx, fy) { const im = el[n]; return im ? [im.offsetLeft + fx * im.offsetWidth, im.offsetTop + fy * im.offsetHeight] : [0, 0]; }
   function clear() { clearTimeout(gT); clearTimeout(gazeT); for (const n of Object.keys(el)) { clearTimeout(st[n].idle); el[n].remove(); delete el[n]; } }
   function reset() { clear(); for (const n of Object.keys(st)) delete st[n]; }
-  return { add, face, talk, lines, laugh, look, glances, play, lean, mouth, chew, at, clear, reset, el: n => el[n] };
+  return { add, face, eat, talk, lines, laugh, look, glances, play, lean, mouth, chew, at, clear, reset, el: n => el[n] };
 })();

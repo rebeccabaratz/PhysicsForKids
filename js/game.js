@@ -470,12 +470,12 @@ async function cutOnce(i, byLael) {                // byLael — режет Ла
   knifeHome();
   const sp = 43 * AU();                            // половинки расходятся недалеко: иначе правая закрывает лицо Шакеда
   await Promise.all([go(a, { x: cx - sp, ms: 320 }), go(b, { x: cx + sp, ms: 320 })]);
-  const left = i % 2 === 1, eaten = left ? a : b, keep = left ? b : a, who = left ? 'arbel' : 'shaked', [mx, my] = A[who];
+  const left = i % 2 === 1, eaten = left ? a : b, keep = left ? b : a, who = left ? 'arbel' : 'shaked';
   if (i === 2) await kl(T.kidsApple.me);
   await facing;
-  KIDS.look([who], false); KIDS.mouth(who, true); // открывает рот навстречу кусочку
-  await go(eaten, { x: mx, y: my, k: k * 0.2, ms: 450, easing: 'ease-in' });
-  eaten.remove(); const ch = KIDS.chew(who);
+  const e = KIDS.eat(who), [hx, hy] = e.hand;      // берёт кусочек рукой (видео), откусывает, жуёт с закрытым ртом
+  await go(eaten, { x: hx, y: hy, k: k * 0.3, ms: e.ms, easing: 'ease-out' });   // кусочек прилетает в руку — там его подхватывает видео
+  eaten.remove(); const ch = e.done;
   await go(keep, { x: cx, ms: 380 });
   A.piece = keep;
   await ch;                                        // сначала дожёвывает — говорить и жевать сразу нельзя
