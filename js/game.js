@@ -426,7 +426,11 @@ async function partA() {
   A.ask = document.createElement('div'); A.ask.id = 'ask'; A.ask.textContent = T.appleAsk; stage.appendChild(A.ask);
   if (P.SHOW_TEXT) A.ask.style.top = '116px';      // пока фразы видны текстом — «איפה אלי?» ниже них (и цифра разрезов ниже)
   setCount(0);
-  await wait(600);
+  // сначала — живая картинка: дети стоят, моргают, переглядываются; любое нажатие на экран — и Лаэль начинает
+  KIDS.glances(true);
+  await new Promise(r => stage.addEventListener('pointerdown', () => r(), { once: true }));
+  KIDS.glances(false);
+  await wait(300);
   for (const l of KA.intro) await kl(l);
   hideSay();
   // все смеются; Лаэль, смеясь, говорит «сейчас проверим» и берёт ножик; остальные досмеиваются и, пока она режет, смех переходит в улыбку
@@ -505,7 +509,7 @@ async function fastCuts() {
         sfx('sparkle');
         const ah = KIDS.gasp(ALL_KIDS);            // все ахают
         await go(A.piece, { k: 1, ms: 550, easing: 'cubic-bezier(.3,1.6,.5,1)' });
-        await Promise.race([ah, wait(1800)]);      // «ах!» — и Лаэль начинает объяснять
+        await Promise.race([ah, wait(3300)]);      // «ах!», рот закрылся — и Лаэль начинает объяснять
         for (const l of stops[n][1]) await kl(l);  // ножик снова зовёт, когда дети договорят
         KIDS.look(ALL_KIDS, true);
         pause = P.STOP_TAP_MS;                     // пауза, чтобы успеть разглядеть клетку / молекулу

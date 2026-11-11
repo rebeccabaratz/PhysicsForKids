@@ -10,7 +10,8 @@
    Кто-то говорит — остальные смотрят на него (GAZE): картинки с головой и глазами, повёрнутыми к говорящему.
    arbel_eat.webp, shaked_eat.webp — берёт кусочек рукой, откусывает, жуёт с закрытым ртом (3 с; кусочек в руке — с кадра HAND[имя][2]).
    beeri_turnA / beeri_turnAback, beeri_turnR / beeri_turnRback — Беэри плавно поворачивает голову к Арбелю (налево) / к Лаэль (направо) и обратно (1,5 с, видео от картинки до _toA).
-   <имя>_gasp.webp — ахает: глаза широко, рот «ах!», потом улыбка (3 с; клетка и молекула; у Арбеля — анфас).
+   <имя>_gasp.webp — ахает: глаза широко, рот «ах!», держит, рот медленно закрывается, в конце лёгкая улыбка (4,8 с: начало видео
+   <имя>_gasp.mp4 вперёд и медленно назад — широкая улыбка из конца видео не нужна, автор; клетка и молекула; у Арбеля — анфас).
    arbel_chew.webp, shaked_chew.webp (запас) — жуёт (1,9 с): начало их «говорит» вперёд и назад, поэтому кончается в позе картинки.
    Анимации по 3 с: <имя>_talk.webp (говорит и показывает рукой — один раз за сцену, {hands: true}),
    <имя>_talk2.webp (говорит: голова и рот, руки спокойно), <имя>_idle.webp (молчит: моргает, дышит),
@@ -32,7 +33,7 @@ const KIDS = (() => {
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
   const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_toR']], [['lael', '_right']]];
   const FRONT = { arbel: true };                   // стоит анфас; к столу — видео turn, обратно — back (st.side — повёрнут к столу)
-  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_upf: 2580, beeri_turnA: 1580, beeri_turnAback: 1580, beeri_turnR: 1580, beeri_turnRback: 1580, lael_right: 3080 };
+  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_upf: 2580, beeri_turnA: 1580, beeri_turnAback: 1580, beeri_turnR: 1580, beeri_turnRback: 1580, lael_gasp: 4810, beeri_gasp: 4810, arbel_gasp: 4810, shaked_gasp: 4810, lael_right: 3080 };
   const FRONT_ANIMS = ['blink', 'glancef', 'upf', 'turn', 'back', 'peek', 'laughf'];
   const FRONT_IDLE_MS = [3500, 7000];             // анфас Арбель двигается чаще: у него движения короче (1–3 с), чем «стоит» у остальных
   // куда смотрит слушатель, когда говорит [кто]: суффикс картинки; 'side' — Арбель поворачивает голову к столу (там все); нет — не меняется
