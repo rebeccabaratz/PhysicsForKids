@@ -29,7 +29,7 @@ const KIDS = (() => {
   const FOOT = 1092 / 1152, FOOT_ARBEL = 0.922, FLAP_MS = 150, ANIM_MS = 3000, CHEW_MS = 23 / 12 * 1000, IDLE_MS = [8000, 16000], LAEL_LOOK_MS = [2500, 5000], FADE_MS = 300;   // Лаэль, глядя на яблоко, моргает и чуть двигается чаще (её lookidle — любимое у автора)
   const GLANCE_EVERY = [6000, 10000], GLANCE_HOLD = [900, 1200];   // ждут: раз в 6–10 с — короткий взгляд (около секунды)
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
-  const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_glance']], [['lael', '_right']]];
+  const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_toR']], [['lael', '_right']]];
   const FRONT = { arbel: true };                   // стоит анфас; к столу — видео turn, обратно — back (st.side — повёрнут к столу)
   const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_upf: 2580, beeri_turnA: 1580, beeri_turnAback: 1580, arbel_lookidle: 1670, lael_right: 3080 };
   const FRONT_ANIMS = ['blink', 'glancef', 'upf', 'turn', 'back', 'peek', 'laughf'];
@@ -38,7 +38,7 @@ const KIDS = (() => {
   // посчитано по положению глаз на экране 390×844: Лаэль (272, 298), Беэри (158, 351), Шакед (334, 408), Арбель (62, 449);
   // картинки — та же поза, повёрнуты голова и глаза (_toS, _toA, _up, _right, _toL, _toB — GPT Image 2.6, 2026-11-11)
   const GAZE = { lael: { beeri: '_glance', arbel: '_glance', shaked: '_toS' },          // влево-вниз 25° и 36°; вправо-вниз 60°
-    beeri: { lael: '_glance', shaked: '_glance', arbel: '_toA' },                         // вправо (вверх 25° / вниз 18°); влево-вниз 45°
+    beeri: { lael: '_toR', shaked: '_toR', arbel: '_toA' },   // вправо (вверх 25° / вниз 18°): та же голова, глаза сдвинуты вправо вручную; влево-вниз 45°
     arbel: { lael: '_up', beeri: '_up', shaked: '_right' },                               // вправо-вверх 36° и 45°; вправо прямо
     shaked: { lael: '_toL', beeri: '_toB' } };                                            // влево-вверх 60°; влево, чуть вверх; на Арбеля — и так влево
   const GAZE_KEEP_MS = 2500;                       // после фразы ещё столько смотрят на говорившего (вдруг заговорит следующий)
