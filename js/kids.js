@@ -36,8 +36,8 @@ const KIDS = (() => {
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
   const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_toR']], [['lael', '_right']]];
   const FRONT = { arbel: true };                   // стоит анфас; к столу — видео turn, обратно — back (st.side — повёрнут к столу)
-  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_upf: 2580, beeri_turnA: 1580, beeri_turnAback: 1580, beeri_turnR: 1580, beeri_turnRback: 1580, lael_tolook: 1410, lael_fromlook: 1490, shaked_tolook: 1330, shaked_fromlook: 1330, beeri_tolook: 1740, beeri_fromlook: 1490, lael_gasp: 3650, beeri_gasp: 3650, arbel_gasp: 3650, shaked_gasp: 3650, lael_right: 3080 };
-  const FRONT_ANIMS = ['blink', 'glancef', 'upf', 'turn', 'back', 'peek', 'laughf'];
+  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_upf: 2580, arbel_backfast: 580, beeri_turnA: 1580, beeri_turnAback: 1580, beeri_turnR: 1580, beeri_turnRback: 1580, lael_tolook: 1410, lael_fromlook: 1490, shaked_tolook: 1330, shaked_fromlook: 1330, beeri_tolook: 1740, beeri_fromlook: 1490, lael_gasp: 3650, beeri_gasp: 3650, arbel_gasp: 3650, shaked_gasp: 3650, lael_right: 3080 };
+  const FRONT_ANIMS = ['blink', 'glancef', 'upf', 'turn', 'back', 'backfast', 'peek', 'laughf'];
   const FRONT_IDLE_MS = [3500, 7000];             // анфас Арбель двигается чаще: у него движения короче (1–3 с), чем «стоит» у остальных
   // куда смотрит слушатель, когда говорит [кто]: суффикс картинки; 'side' — Арбель поворачивает голову к столу (там все); нет — не меняется
   // посчитано по положению глаз на экране 390×844: Лаэль (272, 298), Беэри (158, 351), Шакед (334, 408), Арбель (62, 449);
@@ -236,11 +236,13 @@ const KIDS = (() => {
   async function gasp(names) {                     // все ахают (клетка, молекула): с обычной позы (Арбель — анфас)
     if (RM) return;
     clearTimeout(gazeT);
+    // Арбель ахает анфас: если смотрел на стол — быстро (0,6 с) поворачивается к зрителю; остальные ахают вместе с ним
+    const turn = names.some(n => FRONT[n] && st[n] && st[n].side) ? DUR.arbel_backfast : 0;
     await Promise.all(names.map(async n => {
       const s = st[n]; if (!s) return;
       s.gaze = null; s.look = false; s.cur = ++seq;
-      if (FRONT[n] && s.side) { s.side = false; await play(n, 'back', { end: '_front' }); }   // Арбель ахает анфас: сначала плавно к зрителю
-      else fadeTo(n, still(n));
+      if (FRONT[n] && s.side) { s.side = false; await play(n, 'backfast', { end: '_front' }); }
+      else { fadeTo(n, still(n)); await sleep(turn); }
       await play(n, 'gasp');
     }));
   }
