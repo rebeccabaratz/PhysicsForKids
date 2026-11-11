@@ -18,6 +18,7 @@
    Анимации по 3 с: <имя>_talk.webp (говорит и показывает рукой — один раз за сцену, {hands: true}),
    <имя>_talk2.webp (говорит: голова и рот, руки спокойно), <имя>_idle.webp (молчит: моргает, дышит),
    <имя>_lookidle.webp (смотрит на яблоко и моргает), <имя>_laugh.webp (смеётся), lael_cut.webp (Лаэль режет).
+   Все анимации — один проход (loop = 1 в файле): если таймер чуть опоздал, остаётся последний кадр, а не начало круга.
    Анимации сделаны из видео Higgsfield (Kling 3.0; первый и последний кадр — та же картинка), зелёный фон убран
    (ffmpeg chromakey); поэтому каждая начинается и кончается точно в позе картинки, их можно повторять и сменять.
    Серьёзные картинки — GPT Image 2.6 по исходной (фигура совпадает до 2–4 px), смена — плавная (FADE_MS).
@@ -116,6 +117,11 @@ const KIDS = (() => {
       if (!el[n]) return;
       if (!s.cur && !s.talkN && !s.chewing && !s.gaze) {   // смотрит на говорящего — не отвлекается
         if (!FRONT[n]) await play(n, s.look ? 'lookidle' : 'idle');
+        else if (s.look && s.side) {                // Арбель смотрит на яблоко: изредка поднимает голову к зрителю и снова к яблоку
+          s.side = false;
+          if (await play(n, 'back', { end: '_front' })) { await sleep(500); if (st[n] && st[n].look && !st[n].cur) { st[n].side = true; await play(n, 'turn'); } }
+          else if (st[n]) st[n].side = true;
+        }
         else if (s.side) home(n, 0);
         else { const r = Math.random(); await play(n, r < 0.4 ? 'blink' : r < 0.7 ? 'glancef' : 'upf'); }   // анфас: моргает, отводит глаза, смотрит вверх
       }
