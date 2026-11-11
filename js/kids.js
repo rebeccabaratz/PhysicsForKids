@@ -104,7 +104,7 @@ const KIDS = (() => {
       if (!el[n]) return;
       if (!s.cur && !s.talkN && !s.chewing && !s.gaze) {   // смотрит на говорящего — не отвлекается
         if (!FRONT[n]) await play(n, s.look ? 'lookidle' : 'idle');
-        else if (s.look) await play(n, 'lookidle');
+        else if (s.look) { if (Math.random() < 0.15) await play(n, 'lookidle'); }   // у Арбеля «смотрит на яблоко и моргает» похоже на кивок — очень редко (автор)
         else if (s.side) home(n, 0);
         else { const r = Math.random(); await play(n, r < 0.4 ? 'blink' : r < 0.7 ? 'glancef' : 'upf'); }   // анфас: моргает, отводит глаза, смотрит вверх
       }
