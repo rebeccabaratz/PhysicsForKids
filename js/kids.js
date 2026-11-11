@@ -2,7 +2,8 @@
    Картинки — img/kids/: <имя>.webp (улыбается), <имя>_open.webp (рот открыт — ест),
    <имя>_look.webp (смотрит на яблоко, серьёзно, рот прямой — пока режут),
    <имя>_glance.webp (повернул голову: Лаэль и Беэри — друг к другу, Арбель и Шакед — на зрителя; пока ждут нажатия),
-   lael_right.webp (Лаэль смотрит направо — кадр из её «говорит», рот закрыт).
+   lael_right.webp (Лаэль смотрит направо — кадр из её «говорит», рот закрыт); у Лаэль _glance — кадр из её «стоит».
+   arbel_chew.webp, shaked_chew.webp — жуёт (1,9 с): начало их «говорит» вперёд и назад, поэтому кончается в позе картинки.
    Анимации по 3 с: <имя>_talk.webp (говорит и показывает рукой — один раз за сцену, {hands: true}),
    <имя>_talk2.webp (говорит: голова и рот, руки спокойно), <имя>_idle.webp (молчит: моргает, дышит),
    <имя>_lookidle.webp (смотрит на яблоко и моргает), <имя>_laugh.webp (смеётся), lael_cut.webp (Лаэль режет).
@@ -18,7 +19,7 @@
      KIDS.play(имя, анимация), KIDS.lean(имя, градусы), KIDS.mouth(имя, открыт), KIDS.chew(имя), KIDS.el(имя), KIDS.clear() */
 const KIDS = (() => {
   const FIG = { arbel: 0.0703, beeri: 0.0347, lael: 0.079, shaked: 0.0729 };
-  const FOOT = 1092 / 1152, FLAP_MS = 150, ANIM_MS = 3000, IDLE_MS = [8000, 16000], FADE_MS = 300;
+  const FOOT = 1092 / 1152, FLAP_MS = 150, ANIM_MS = 3000, CHEW_MS = 23 / 12 * 1000, IDLE_MS = [8000, 16000], FADE_MS = 300;
   const GLANCE_EVERY = [6000, 10000], GLANCE_HOLD = [900, 1200];   // ждут: раз в 6–10 с — короткий взгляд (около секунды)
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
   const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_glance']], [['lael', '_right']]];
@@ -41,18 +42,19 @@ const KIDS = (() => {
     // анимации — файлами в память один раз; каждый показ — новый адрес, чтобы анимация шла с первого кадра
     for (const k of ANIMS) load(n, k);
     if (n === 'lael') load(n, 'cut');
+    if (n === 'arbel' || n === 'shaked') load(n, 'chew');
     new Image().src = src(n, '_glance'); if (n === 'lael') new Image().src = src(n, '_right');
     idleLater(n);
     return im;
   }
   let seq = 0;
   /* один круг анимации (3 с). false — если её перебила другая (тогда картинку не трогаем) */
-  async function play(n, k) {
+  async function play(n, k, ms = ANIM_MS) {
     const im = el[n], s = st[n], b = await load(n, k);
     if (!im || !b || RM) return false;
     const id = ++seq; s.cur = id;
     const url = URL.createObjectURL(b); im.src = url;
-    await sleep(ANIM_MS);
+    await sleep(ms);
     URL.revokeObjectURL(url);
     if (s.cur !== id || !im.isConnected) return false;
     s.cur = 0; im.src = still(n); return true;
@@ -74,6 +76,7 @@ const KIDS = (() => {
   function look(names, on) {                       // смотрят на яблоко (серьёзно) — или снова улыбаются
     for (const n of names) {
       const s = st[n]; if (!s || s.look === on) continue;
+      if (s.chewing) { s.look = on; continue; }   // дожёвывает; потом сам посмотрит куда нужно
       s.look = on; s.cur = ++seq;                  // перебивает анимацию; круг «говорит» прекратится
       fadeTo(n, still(n)); s.cur = 0;
     }
@@ -85,7 +88,7 @@ const KIDS = (() => {
     gT = setTimeout(() => {
       let i; do i = Math.floor(Math.random() * GLANCES.length); while (i === gLast);
       const g = GLANCES[i];
-      if (g.every(([n]) => el[n] && !st[n].talkN)) {   // кто говорит — не отвлекается (моргание прерывается)
+      if (g.every(([n]) => el[n] && !st[n].talkN && !st[n].chewing)) {   // кто говорит — не отвлекается (моргание прерывается)
         gLast = i; const ms = GLANCE_HOLD[0] + Math.random() * (GLANCE_HOLD[1] - GLANCE_HOLD[0]);
         for (const [n, s] of g) glance(n, s, ms);
       }
@@ -129,7 +132,11 @@ const KIDS = (() => {
     return im.animate([{ transform: 'rotate(0)' }, { transform: `rotate(${deg}deg) translateY(4px)`, offset: 0.3 },
       { transform: `rotate(${deg}deg) translateY(4px)`, offset: 0.7 }, { transform: 'rotate(0)' }], { duration: ms * K, easing: 'ease-in-out' }).finished.catch(() => {});
   }
-  async function chew(n) {                         // жуёт: рот закрыт — открыт, три раза
+  async function chew(n) {                         // жуёт: анимация из кадров видео; без неё — рот закрыт — открыт, три раза
+    if (!RM && await load(n, 'chew')) {
+      for (const t of [0, 600, 1200]) setTimeout(() => el[n] && sfx('chomp'), t);
+      st[n].chewing = true; await play(n, 'chew', CHEW_MS); if (st[n]) st[n].chewing = false; return;
+    }
     for (let i = 0; i < 3 && el[n]; i++) { mouth(n, false); sfx('chomp'); await wait(170); mouth(n, true); await wait(170); }
     mouth(n, false);
   }
