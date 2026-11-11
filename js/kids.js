@@ -5,7 +5,7 @@
    lael_right.webp (Лаэль плавно смотрит направо, моргает и возвращается — 3 с из её «стоит», анимация); у Лаэль _glance — картинка (в её видео она влево не смотрит), правый глаз сдвинут от носа вручную.
    Арбель (2026-11-11, по фото) обычно стоит АНФАС (arbel_front.webp = _glance, лицо с портрета). К столу и обратно голова
    поворачивается видео (arbel_turn 1,5 с / arbel_back 1,7 с — из пробного поворота, без смены картинок). Повёрнутый к столу
-   (arbel.webp) — говорит (talk2), ест (_open, chew), смотрит на яблоко (_look, lookidle), смеётся (laugh). Анфас — моргает
+   (arbel.webp) — говорит (talk2), ест (_open, chew), смотрит на яблоко (_look — кадр 45 arbel_lookidle.mp4, lookidle; _open — кадр 51 arbel_talk2.mp4), смеётся (laugh). Анфас — моргает
    (arbel_blink), поглядывает на яблоко и обратно (arbel_peek), смеётся (arbel_laughf). Всё из видео art/kids/arbel_*.mp4.
    arbel_chew.webp, shaked_chew.webp — жуёт (1,9 с): начало их «говорит» вперёд и назад, поэтому кончается в позе картинки.
    Анимации по 3 с: <имя>_talk.webp (говорит и показывает рукой — один раз за сцену, {hands: true}),
@@ -163,7 +163,8 @@ const KIDS = (() => {
     s.talkN++;
     if (!s.loop) s.loop = (async () => { let kk = k; while (s.talkN > 0 && await play(n, kk)) kk = 'talk2'; s.loop = null; })();
     await say(text, { next: false });
-    s.talkN--;                                     // круг «говорит» доиграет сам, следующая фраза не ждёт
+    s.talkN--;
+    if (!s.talkN && s.loop) { s.cur = ++seq; fadeTo(n, still(n)); s.cur = 0; }   // фраза кончилась — замолкает сразу (не говорит вместе со следующим)
     home(n, 1500);
   }
   async function lines(list) { for (const [n, t] of list) await talk(n, t); }

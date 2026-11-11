@@ -399,7 +399,6 @@ function fistPos(f, deg, k) {                       // где середина �
 const knifeInFist = (f, deg, k) => put(A.knife, ...fistPos(f, deg, k), k, `rotate(${deg}deg) scaleX(-1)`);
 async function laelStrike(after) {                  // Лаэль берёт ножик, поднимает и режет (ножик — в её кулаке)
   const kn = A.knife, K0 = 0.72;
-  after.then(() => KIDS.look(['beeri', 'arbel', 'shaked'], true));   // досмеялись — смотрят на яблоко
   const lz = KIDS.el('lael'); lz.style.zIndex = '3';   // поднятая рука — перед плечом Беэри
   KIDS.play('lael', 'cut');
   const t0 = performance.now(), fr = () => Math.floor((performance.now() - t0) / 1000 * 12);
@@ -407,8 +406,10 @@ async function laelStrike(after) {                  // Лаэль берёт н�
   // ножик со стола прыгает в руку, пока она поднимается
   const [x, y] = fistPos(10, HOLD, K0);
   await go(kn, { x, y, k: K0, ex: `rotate(${HOLD}deg) scaleX(-1)`, ms: 220 });
+  let seen = false;
   for (;;) {                                        // держит над яблоком, потом — удар: острие опускается в яблоко
     const f = fr(); if (f >= FIST.length) break;
+    if (f >= 20 && !seen) { seen = true; KIDS.look(['beeri', 'arbel', 'shaked'], true); }   // смотрят на яблоко, только когда нож пошёл вниз
     knifeInFist(Math.max(f, 10), HOLD + (STRIKE - HOLD) * Math.min(1, Math.max(0, (f - 19) / 4)), K0);
     await new Promise(requestAnimationFrame);
   }
