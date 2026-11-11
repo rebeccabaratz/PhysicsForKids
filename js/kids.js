@@ -10,7 +10,7 @@
    Кто-то говорит — остальные смотрят на него (GAZE): картинки с головой и глазами, повёрнутыми к говорящему.
    arbel_eat.webp, shaked_eat.webp — берёт кусочек рукой, откусывает, жуёт с закрытым ртом (3 с; кусочек в руке — с кадра HAND[имя][2]).
    beeri_turnA / beeri_turnAback, beeri_turnR / beeri_turnRback — Беэри плавно поворачивает голову к Арбелю (налево) / к Лаэль (направо) и обратно (1,5 с, видео от картинки до _toA).
-   <имя>_gasp.webp — ахает: глаза широко, рот «ах!», держит, рот медленно закрывается, в конце лёгкая улыбка (3,6 с: начало видео
+   <имя>_gasp.webp — ахает: глаза широко, рот «ах!», держит, рот медленно закрывается, в конце лёгкая улыбка (2,3 с, улыбка в конце — мгновение, сразу поворачивают головы к Лаэль: начало видео
    <имя>_gasp.mp4 вперёд и медленно назад — широкая улыбка из конца видео не нужна, автор; клетка и молекула; у Арбеля — анфас).
    <имя>_tolook / <имя>_fromlook (Лаэль, Шакед, Беэри) — видео «обычная → смотрит на яблоко» и оно же назад (art/kids/<имя>_tolook.mp4).
    Взгляды на говорящего — видео <имя>_m?.mp4 / beeri_turn?.mp4 (MOVE): от обычной картинки к картинке взгляда; назад — то же наоборот.
@@ -36,7 +36,7 @@ const KIDS = (() => {
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
   const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_toR']], [['lael', '_right']]];
   const FRONT = { arbel: true };                   // стоит анфас; к столу — видео turn, обратно — back (st.side — повёрнут к столу)
-  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 3150, arbel_glancef: 2170, arbel_upf: 2580, arbel_backfast: 580, beeri_turnA: 1580, beeri_turnAback: 1580, beeri_turnR: 1580, beeri_turnRback: 1580, lael_gasp: 3650, beeri_gasp: 3650, arbel_gasp: 3650, shaked_gasp: 3650, lael_right: 3080 };
+  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 3150, arbel_glancef: 2170, arbel_upf: 2580, arbel_backfast: 580, beeri_turnA: 1580, beeri_turnAback: 1580, beeri_turnR: 1580, beeri_turnRback: 1580, lael_gasp: 2320, beeri_gasp: 2320, arbel_gasp: 2320, shaked_gasp: 2320, lael_right: 3080 };
   const FRONT_ANIMS = ['blink', 'glancef', 'upf', 'turn', 'back', 'backfast', 'peek', 'laughf'];
   const FRONT_IDLE_MS = [3500, 7000];             // анфас Арбель двигается чаще: у него движения короче (1–3 с), чем «стоит» у остальных
   // куда смотрит слушатель, когда говорит [кто]: суффикс картинки; 'side' — Арбель поворачивает голову к столу (там все); нет — не меняется
@@ -77,9 +77,9 @@ const KIDS = (() => {
     if (LOOKMOVE[n]) { load(n, 'tolook'); load(n, 'fromlook'); }
     for (const a of Object.values(MOVE[n] || {})) { load(n, a); load(n, a + 'back'); }
     if (n === 'beeri') for (const t of ['turnA', 'turnAback', 'turnR', 'turnRback']) load(n, t);
-    if (FRONT[n]) { for (const a of FRONT_ANIMS) load(n, a); new Image().src = src(n, '_front'); new Image().src = src(n); }
-    for (const g of Object.values(GAZE[n] || {})) if (g !== 'side') new Image().src = src(n, g);
-    new Image().src = src(n, '_glance'); if (n === 'lael') { load(n, 'right'); new Image().src = src(n, '_toright'); }
+    if (FRONT[n]) { for (const a of FRONT_ANIMS) load(n, a); ready(src(n, '_front')); ready(src(n)); }
+    for (const g of Object.values(GAZE[n] || {})) if (g !== 'side') ready(src(n, g));
+    ready(src(n, '_glance')); if (n === 'lael') { load(n, 'right'); ready(src(n, '_toright')); }
     idleLater(n);
     return im;
   }
@@ -91,14 +91,17 @@ const KIDS = (() => {
     const im = el[n], s = st[n], b = await load(n, k);
     if (!im || !b || RM) return false;
     const id = ++seq; s.cur = id;
-    const url = URL.createObjectURL(b); im.src = url;
+    const url = URL.createObjectURL(b);
+    await ready(url);                              // раскодировать заранее: смена без пустого кадра
+    if (s.cur !== id) { URL.revokeObjectURL(url); return false; }
+    im.src = url;
     await sleep(ms);
     URL.revokeObjectURL(url);
     if (s.cur !== id || !im.isConnected) return false;
     s.cur = 0;
-    if (o.end != null) im.src = src(n, o.end);
+    if (o.end != null) { await ready(src(n, o.end)); im.src = src(n, o.end); }
     else if (o.via != null) { im.src = src(n, o.via); fadeTo(n, still(n)); }
-    else im.src = still(n);
+    else { const u = still(n); await ready(u); im.src = u; }
     return true;
   }
   function home(n, delay = 700) {                  // повёрнутый к столу (не занят) — плавно обратно анфас
@@ -127,6 +130,13 @@ const KIDS = (() => {
       }
       if (el[n]) idleLater(n);
     }, (([a, b]) => a + Math.random() * (b - a))(n === 'lael' && s.look ? LAEL_LOOK_MS : FRONT[n] && !s.look ? FRONT_IDLE_MS : IDLE_MS));
+  }
+  const decoded = new Set();
+  async function ready(url) {                      // картинка раскодирована — её можно показать без пустого кадра
+    if (decoded.has(url)) return;
+    const p = new Image(); p.src = url;
+    try { await p.decode(); } catch (e) {}
+    if (!url.startsWith('blob:')) decoded.add(url);
   }
   function fadeTo(n, url) {                        // плавная смена картинки: старая тает поверх новой
     const im = el[n]; if (!im || im.src.endsWith(url)) return;

@@ -509,7 +509,7 @@ async function fastCuts() {
         sfx('sparkle');
         const ah = KIDS.gasp(ALL_KIDS);            // все ахают
         await go(A.piece, { k: 1, ms: 550, easing: 'cubic-bezier(.3,1.6,.5,1)' });
-        await Promise.race([ah, wait(2400)]);      // «ах!», рот закрылся — и Лаэль начинает объяснять
+        await ah;                                  // «ах!» — и сразу Лаэль объясняет, все поворачиваются к ней
         for (const l of stops[n][1]) await kl(l);  // ножик снова зовёт, когда дети договорят
         KIDS.look(ALL_KIDS, true);
         pause = P.STOP_TAP_MS;                     // пауза, чтобы успеть разглядеть клетку / молекулу
