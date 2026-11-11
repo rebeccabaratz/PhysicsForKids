@@ -10,6 +10,7 @@
    Кто-то говорит — остальные смотрят на него (GAZE): картинки с головой и глазами, повёрнутыми к говорящему.
    arbel_eat.webp, shaked_eat.webp — берёт кусочек рукой, откусывает, жуёт с закрытым ртом (3 с; кусочек в руке — с кадра HAND[имя][2]).
    beeri_turnA / beeri_turnAback, beeri_turnR / beeri_turnRback — Беэри плавно поворачивает голову к Арбелю (налево) / к Лаэль (направо) и обратно (1,5 с, видео от картинки до _toA).
+   <имя>_gasp.webp — ахает: глаза широко, рот «ах!», потом улыбка (3 с; клетка и молекула; у Арбеля — анфас).
    arbel_chew.webp, shaked_chew.webp (запас) — жуёт (1,9 с): начало их «говорит» вперёд и назад, поэтому кончается в позе картинки.
    Анимации по 3 с: <имя>_talk.webp (говорит и показывает рукой — один раз за сцену, {hands: true}),
    <имя>_talk2.webp (говорит: голова и рот, руки спокойно), <имя>_idle.webp (молчит: моргает, дышит),
@@ -63,6 +64,7 @@ const KIDS = (() => {
     for (const k of ANIMS) if (!(n === 'arbel' && k === 'lookidle')) load(n, k);   // у Арбеля lookidle (кивок) и _look/_open удалены (автор)
     if (n === 'lael') load(n, 'cut');
     if (n === 'arbel' || n === 'shaked') load(n, 'eat');
+    load(n, 'gasp');
     if (n === 'beeri') for (const t of ['turnA', 'turnAback', 'turnR', 'turnRback']) load(n, t);
     if (FRONT[n]) { for (const a of FRONT_ANIMS) load(n, a); new Image().src = src(n, '_front'); new Image().src = src(n); }
     for (const g of Object.values(GAZE[n] || {})) if (g !== 'side') new Image().src = src(n, g);
@@ -217,6 +219,17 @@ const KIDS = (() => {
   }
   async function lines(list) { for (const [n, t] of list) await talk(n, t); }
 
+  async function gasp(names) {                     // все ахают (клетка, молекула): с обычной позы (Арбель — анфас)
+    if (RM) return;
+    clearTimeout(gazeT);
+    await Promise.all(names.map(async n => {
+      const s = st[n]; if (!s) return;
+      s.gaze = null; s.look = false; s.cur = ++seq;
+      if (FRONT[n]) s.side = false;              // Арбель ахает анфас: голова к зрителю — сразу, вместе со всеми (ахают резко)
+      fadeTo(n, still(n));
+      await play(n, 'gasp');
+    }));
+  }
   async function laugh(names) {                    // все смеются (3 с); без движения на экране — просто пауза
     if (RM) { await wait(1200); return; }
     look(names, false);
@@ -248,5 +261,5 @@ const KIDS = (() => {
   function at(n, fx, fy) { const im = el[n]; return im ? [im.offsetLeft + fx * im.offsetWidth, im.offsetTop + fy * im.offsetHeight] : [0, 0]; }
   function clear() { clearTimeout(gT); clearTimeout(gazeT); for (const n of Object.keys(el)) { clearTimeout(st[n].idle); el[n].remove(); delete el[n]; } }
   function reset() { clear(); for (const n of Object.keys(st)) delete st[n]; }
-  return { add, face, eat, talk, lines, laugh, look, glances, play, lean, mouth, chew, at, clear, reset, el: n => el[n] };
+  return { add, face, eat, gasp, talk, lines, laugh, look, glances, play, lean, mouth, chew, at, clear, reset, el: n => el[n] };
 })();

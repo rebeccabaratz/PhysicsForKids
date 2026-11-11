@@ -503,7 +503,9 @@ async function fastCuts() {
         A.piece.remove();
         A.piece = sprite(stops[n][0]); setB(A.piece, L.apple * 1.05); put(A.piece, cx, L.appleY, 0.15);
         sfx('sparkle');
+        const ah = KIDS.gasp(ALL_KIDS);            // все ахают
         await go(A.piece, { k: 1, ms: 550, easing: 'cubic-bezier(.3,1.6,.5,1)' });
+        await Promise.race([ah, wait(1800)]);      // «ах!» — и Лаэль начинает объяснять
         for (const l of stops[n][1]) await kl(l);  // ножик снова зовёт, когда дети договорят
         KIDS.look(ALL_KIDS, true);
         pause = P.STOP_TAP_MS;                     // пауза, чтобы успеть разглядеть клетку / молекулу
