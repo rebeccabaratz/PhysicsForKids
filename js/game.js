@@ -332,9 +332,9 @@ let A = {};
 const AU = () => L.apple / 179;                     // масштаб относительно экрана 390×844
 const AD = (x, y) => [W / 2 + (x - 195) * AU(), L.appleY + (y - 447) * AU()];
 const KID_AT = {                                    // середина, макушка, рост, слой, [за столом — ниже не видно] (на экране 390×844)
-  lael: [277, 225, 420, 1, 600], beeri: [166, 262, 440, 2, 600], arbel: [62, 372, 375, 3], shaked: [328, 352, 395, 3],
+  lael: [277, 225, 420, 1, 600], beeri: [166, 262, 440, 2, 600], arbel: [62, 372, 375, 3], shaked: [328, 322, 425, 3],
 };
-const MOUTH = { arbel: [82, 456], shaked: [312, 436] };   // куда летят половинки
+const MOUTH = { arbel: [82, 456], shaked: [311, 412] };   // куда летят половинки
 const KNIFE_AT = [205, 566];                        // ножик лежит на столе перед яблоком
 function drawTable() {                              // стол со скатертью и доска (как в пробе чата); слой 4 — под яблоком, над детьми
   const y0 = 468, y1 = 592, xb = 100, xf = 78, y2 = y1 + 62, floor = 790, w = 390;
@@ -362,7 +362,15 @@ function placeKids() {
   for (const [n, [x, y]] of Object.entries(MOUTH)) A[n] = AD(x, y);
 }
 const restY = k => L.appleY + 0.45 * L.apple * (1 - k);   // кусочек лежит на доске (низ целого яблока — на доске)
-function knifeRest() { const [x, y] = AD(...KNIFE_AT); put(A.knife, x, y, 0.85, 'rotate(45deg)'); }
+const KNIFE_REST = 'rotate(45deg) scaleX(1)';        // лежит на столе (scaleX — чтобы в руке Лаэль плавно перевернуться)
+function knifeRest() { const [x, y] = AD(...KNIFE_AT); put(A.knife, x, y, 0.85, KNIFE_REST); }
+async function knifeHome() {                        // ножик ложится обратно на стол
+  if (A.knife._home) return;
+  A.knife._home = true;
+  const [x, y] = AD(...KNIFE_AT);
+  await go(A.knife, { x, y, k: 0.85, ex: KNIFE_REST, ms: 380 });
+  A.knife._home = false; A.knifeBusy = false;
+}
 function placeHalo() {                              // золотое мерцание под ножиком: на светлой скатерти свечения ножика почти не видно
   const [x, y] = AD(...KNIFE_AT), u = AU();
   Object.assign(A.halo.style, { left: (x - 70 * u) + 'px', top: (y - 40 * u) + 'px', width: 140 * u + 'px', height: 80 * u + 'px' });
@@ -370,7 +378,7 @@ function placeHalo() {                              // золотое мерца
 function layoutA() {
   if (A.table) { A.table.remove(); A.table = drawTable(); placeKids(); }
   if (A.piece) put(A.piece, W / 2, restY(A.piece._k), A.piece._k, A.piece._ex);
-  if (A.knife && !A.knifeBusy && !A.knifeUp) knifeRest();
+  if (A.knife && !A.knifeBusy) knifeRest();
   if (A.halo) placeHalo();
 }
 const kl = ([n, t], o) => KIDS.talk(n, t, o);
@@ -380,26 +388,31 @@ const ALL_KIDS = ['lael', 'beeri', 'arbel', 'shaked'];
 const FIST = [[.296, .538], [.296, .538], [.296, .538], [.296, .537], [.286, .54], [.251, .539], [.194, .515], [.175, .443], [.174, .38],
   [.186, .345], [.199, .33], [.204, .325], [.204, .336], [.204, .335], [.197, .33], [.201, .334], [.201, .333], [.2, .33], [.2, .33],
   [.199, .331], [.19, .338], [.174, .355], [.153, .396], [.171, .445], [.185, .514]];
-const GRIP = [-0.25, 0.22];                         // где рукоятка в картинке ножика (доля от середины)
-function knifeInFist(f, deg, k) {                   // ножик рукояткой в кулаке Лаэль, лезвие повёрнуто на deg
-  const kn = A.knife, [fx, fy] = FIST[f], [hx, hy] = KIDS.at('lael', fx, fy), a = deg * Math.PI / 180, b = kn._b * k;
+/* в руке ножик отражён (scaleX(-1)): рукоятка справа внизу, острие влево вверх; поворот deg — по часовой.
+   HOLD: острие смотрит вниз-влево, на яблоко; STRIKE: при ударе — почти отвесно вниз, в яблоко */
+const GRIP = [0.25, 0.22], HOLD = -95, STRIKE = -125;   // GRIP — рукоятка в отражённой картинке (доля от середины)
+function fistPos(f, deg, k) {                       // где середина ножика, если рукоятка — в кулаке Лаэль
+  const [fx, fy] = FIST[f], [hx, hy] = KIDS.at('lael', fx, fy), a = deg * Math.PI / 180, b = A.knife._b * k;
   const gx = GRIP[0] * b, gy = GRIP[1] * b;
-  put(kn, hx - (gx * Math.cos(a) - gy * Math.sin(a)), hy - (gx * Math.sin(a) + gy * Math.cos(a)), k, `rotate(${deg}deg)`);
+  return [hx - (gx * Math.cos(a) - gy * Math.sin(a)), hy - (gx * Math.sin(a) + gy * Math.cos(a))];
 }
+const knifeInFist = (f, deg, k) => put(A.knife, ...fistPos(f, deg, k), k, `rotate(${deg}deg) scaleX(-1)`);
 async function laelStrike() {                       // Лаэль берёт ножик, поднимает и режет (ножик — в её кулаке)
   const kn = A.knife, K0 = 0.72;
   KIDS.look(['beeri', 'arbel', 'shaked'], true);
+  const lz = KIDS.el('lael'); lz.style.zIndex = '3';   // поднятая рука — перед плечом Беэри
   KIDS.play('lael', 'cut');
   const t0 = performance.now(), fr = () => Math.floor((performance.now() - t0) / 1000 * 12);
   while (fr() < 8) await new Promise(requestAnimationFrame);
   // ножик со стола прыгает в руку, пока она поднимается
-  const [hx, hy] = KIDS.at('lael', ...FIST[10]);
-  await go(kn, { x: hx + 0.1 * kn._b, y: hy - 0.15 * kn._b, k: K0, ex: 'rotate(0deg)', ms: 220 });
-  for (;;) {                                        // держит над яблоком, потом — удар: лезвие поворачивается вниз
+  const [x, y] = fistPos(10, HOLD, K0);
+  await go(kn, { x, y, k: K0, ex: `rotate(${HOLD}deg) scaleX(-1)`, ms: 220 });
+  for (;;) {                                        // держит над яблоком, потом — удар: острие опускается в яблоко
     const f = fr(); if (f >= FIST.length) break;
-    knifeInFist(Math.max(f, 10), f < 20 ? 0 : Math.min(100, (f - 19) * 22), K0);
+    knifeInFist(Math.max(f, 10), HOLD + (STRIKE - HOLD) * Math.min(1, Math.max(0, (f - 19) / 4)), K0);
     await new Promise(requestAnimationFrame);
   }
+  lz.style.zIndex = String(KID_AT.lael[3]);
 }
 async function partA() {
   phase = 'A'; setLabel(T.appleLabel);
@@ -430,8 +443,10 @@ async function partA() {
 }
 async function knifeTap(delay) {                   // ножик светится и ждёт нажатия (через delay мс)
   await wait(delay);
-  A.knife.classList.add('tappable'); if (A.halo && !A.knifeUp) A.halo.classList.add('on');
+  A.knife.classList.add('tappable'); if (A.halo) A.halo.classList.add('on');
+  KIDS.look(ALL_KIDS, false); KIDS.glances(true);   // ждут — изредка поворачивают голову
   await tapOn(A.knife);
+  KIDS.glances(false);
   A.knife.classList.remove('tappable'); if (A.halo) A.halo.classList.remove('on');
 }
 async function cutOnce(i, byLael) {
@@ -449,8 +464,7 @@ async function cutOnce(i, byLael) {
   A.piece.remove();
   const a = sprite(img), b = sprite(img); setB(a, L.apple); setB(b, L.apple);
   put(a, cx, restY(k), k, 'scaleX(-1)'); put(b, cx, restY(k), k);
-  const [rx, ry] = AD(...KNIFE_AT);
-  go(kn, { x: rx, y: ry, k: 0.85, ex: 'rotate(45deg)', ms: 380 }).then(() => A.knifeBusy = false);   // ложится обратно на стол
+  knifeHome();
   const sp = 43 * AU();                            // половинки расходятся недалеко: иначе правая закрывает лицо Шакеда
   await Promise.all([go(a, { x: cx - sp, ms: 320 }), go(b, { x: cx + sp, ms: 320 })]);
   const left = i % 2 === 1, eaten = left ? a : b, keep = left ? b : a, who = left ? 'arbel' : 'shaked', [mx, my] = A[who];
@@ -466,14 +480,13 @@ async function fastCuts() {
   hideSay();
   const KA = T.kidsApple, cx = W / 2, stops = { 9: ['cell', KA.cell], 27: ['molecule', KA.mol] };
   const kn = A.knife;
-  await knifeTap(0);
-  A.knifeBusy = A.knifeUp = true;
-  KIDS.look(ALL_KIDS, true);
-  await go(kn, { x: cx + L.apple * 0.08, y: L.appleY - L.apple * 0.5, k: 1, ex: '', ms: 260 });
   let n = P.MANUAL_CUTS + 1, pause = 0;
   while (n <= P.TOTAL_CUTS) {
-    if (n > P.MANUAL_CUTS + 1) { await knifeTap(pause); hideSay(); }   // каждое нажатие — CUTS_PER_TAP разрезов
+    await knifeTap(pause); hideSay();              // ножик лежит на столе; каждое нажатие — CUTS_PER_TAP разрезов
     pause = 0;
+    A.knifeBusy = true;
+    KIDS.look(ALL_KIDS, true);
+    await go(kn, { x: cx + L.apple * 0.08, y: L.appleY - L.apple * 0.5, k: 1, ex: '', ms: 260 });
     for (let c = 0; c < P.CUTS_PER_TAP && n <= P.TOTAL_CUTS; c++, n++) {
       setCount(n); sfx('cut');
       const base = tf(kn);
@@ -481,6 +494,7 @@ async function fastCuts() {
       go(A.piece, { k: A.piece._k * 0.88, y: restY(A.piece._k * 0.88), ms: P.FAST_CUT_MS });
       await wait(P.FAST_CUT_MS);
       if (stops[n]) {
+        knifeHome();
         A.piece.remove();
         A.piece = sprite(stops[n][0]); setB(A.piece, L.apple * 1.05); put(A.piece, cx, L.appleY, 0.15);
         sfx('sparkle');
@@ -491,6 +505,7 @@ async function fastCuts() {
         n++; break;
       }
     }
+    await knifeHome();                             // серия разрезов кончилась — ножик ложится на стол
   }
   hideSay();
   await flash();

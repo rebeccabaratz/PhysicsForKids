@@ -1,6 +1,7 @@
 /* Название: kids.js — внуки, герои рассказа (STORY_RU.md, STORY_HE.md): Лаэль, Беэри, Шакед, Арбель
    Картинки — img/kids/: <имя>.webp (улыбается), <имя>_open.webp (рот открыт — ест),
-   <имя>_look.webp (смотрит на яблоко, серьёзно, рот прямой — пока режут).
+   <имя>_look.webp (смотрит на яблоко, серьёзно, рот прямой — пока режут),
+   <имя>_glance.webp (повернул голову: Лаэль и Беэри — друг к другу, Арбель и Шакед — на зрителя; пока ждут нажатия).
    Анимации по 3 с: <имя>_talk.webp (говорит и показывает рукой — один раз за сцену, {hands: true}),
    <имя>_talk2.webp (говорит: голова и рот, руки спокойно), <имя>_idle.webp (молчит: моргает, дышит),
    <имя>_lookidle.webp (смотрит на яблоко и моргает), <имя>_laugh.webp (смеётся), lael_cut.webp (Лаэль режет).
@@ -12,11 +13,12 @@
    Пока звучит (или видна) фраза ребёнка, его «говорит» повторяется; после фразы доигрывает до конца круга.
    Кто молчит — иногда моргает (IDLE_MS). Если анимации нет — рот просто открывается и закрывается (FLAP_MS).
    Наружу: KIDS.add(имя, {x, top, h, z, clip}) — поставить (x — середина, top — макушка, h — рост фигуры, clip — ниже этой высоты не видно; всё в px сцены),
-     KIDS.talk(имя, фраза, {hands}), KIDS.lines([[имя, фраза], …]), KIDS.laugh([имена]), KIDS.look([имена], да/нет),
+     KIDS.talk(имя, фраза, {hands}), KIDS.lines([[имя, фраза], …]), KIDS.laugh([имена]), KIDS.look([имена], да/нет), KIDS.glances(да/нет) — ждут: изредка поворачивают голову,
      KIDS.play(имя, анимация), KIDS.lean(имя, градусы), KIDS.mouth(имя, открыт), KIDS.chew(имя), KIDS.el(имя), KIDS.clear() */
 const KIDS = (() => {
   const FIG = { arbel: 0.0703, beeri: 0.0347, lael: 0.079, shaked: 0.0729 };
   const FOOT = 1092 / 1152, FLAP_MS = 150, ANIM_MS = 3000, IDLE_MS = [8000, 16000], FADE_MS = 300;
+  const GLANCE_EVERY = [2500, 5000], GLANCE_HOLD = [1400, 2600];   // ждут: раз в 2,5–5 с кто-то один поворачивает голову на 1,4–2,6 с
   const ANIMS = ['talk2', 'idle', 'lookidle', 'laugh'];   // заранее; «talk» (с жестом) — когда понадобится
   const el = {}, st = {}, blob = {};
   const src = (n, s = '') => `img/kids/${n}${s}.webp`;
@@ -36,6 +38,7 @@ const KIDS = (() => {
     // анимации — файлами в память один раз; каждый показ — новый адрес, чтобы анимация шла с первого кадра
     for (const k of ANIMS) load(n, k);
     if (n === 'lael') load(n, 'cut');
+    new Image().src = src(n, '_glance');
     idleLater(n);
     return im;
   }
@@ -71,6 +74,23 @@ const KIDS = (() => {
       s.look = on; s.cur = ++seq;                  // перебивает анимацию; круг «говорит» прекратится
       fadeTo(n, still(n)); s.cur = 0;
     }
+  }
+  let gT = 0, gLast = '';
+  function glances(on) {                           // ждут игрока: изредка кто-то один (не занятый) поворачивает голову
+    clearTimeout(gT);
+    if (!on) { for (const n of Object.keys(el)) if (st[n].gl && st[n].cur === st[n].gl) { fadeTo(n, still(n)); st[n].cur = 0; } return; }
+    gT = setTimeout(() => {
+      const free = Object.keys(el).filter(n => n !== gLast && !st[n].cur && !st[n].talkN && !st[n].look);   // не тот же два раза подряд
+      if (free.length) glance(gLast = free[Math.floor(Math.random() * free.length)]);
+      glances(true);
+    }, GLANCE_EVERY[0] + Math.random() * (GLANCE_EVERY[1] - GLANCE_EVERY[0]));
+  }
+  async function glance(n) {
+    const s = st[n], id = ++seq; s.cur = s.gl = id;
+    fadeTo(n, src(n, '_glance'));
+    await sleep(GLANCE_HOLD[0] + Math.random() * (GLANCE_HOLD[1] - GLANCE_HOLD[0]));
+    if (s.cur !== id || !el[n]) return;
+    fadeTo(n, still(n)); s.cur = 0;
   }
   const mouth = (n, open) => { if (!el[n]) return; st[n].cur = ++seq; el[n].src = open ? src(n, '_open') : still(n); if (!open) st[n].cur = 0; };
 
@@ -108,7 +128,7 @@ const KIDS = (() => {
   }
   /* где кадр анимации в px сцены: доли кадра 9:16 (fx, fy) → координаты на экране (для ножика в руке Лаэль) */
   function at(n, fx, fy) { const im = el[n]; return im ? [im.offsetLeft + fx * im.offsetWidth, im.offsetTop + fy * im.offsetHeight] : [0, 0]; }
-  function clear() { for (const n of Object.keys(el)) { clearTimeout(st[n].idle); el[n].remove(); delete el[n]; } }
+  function clear() { clearTimeout(gT); for (const n of Object.keys(el)) { clearTimeout(st[n].idle); el[n].remove(); delete el[n]; } }
   function reset() { clear(); for (const n of Object.keys(st)) delete st[n]; }
-  return { add, talk, lines, laugh, look, play, lean, mouth, chew, at, clear, reset, el: n => el[n] };
+  return { add, talk, lines, laugh, look, glances, play, lean, mouth, chew, at, clear, reset, el: n => el[n] };
 })();
