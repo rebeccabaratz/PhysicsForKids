@@ -2,7 +2,7 @@
    Картинки — img/kids/: <имя>.webp (улыбается), <имя>_open.webp (рот открыт — ест),
    <имя>_look.webp (смотрит на яблоко, серьёзно, рот прямой — пока режут),
    <имя>_glance.webp (повернул голову: Лаэль и Беэри — друг к другу, Арбель и Шакед — на зрителя; пока ждут нажатия),
-   lael_right.webp (Лаэль смотрит направо — кадр из её «говорит», рот закрыт); у Лаэль _glance — картинка (в её видео она влево не смотрит).
+   lael_right.webp (Лаэль смотрит направо — кадр из её «говорит», рот закрыт); у Лаэль _glance — картинка (в её видео она влево не смотрит), правый глаз сдвинут от носа вручную.
    Арбель (2026-11-11, по фото) обычно стоит АНФАС (arbel_front.webp = _glance, лицо с портрета). К столу и обратно голова
    поворачивается видео (arbel_turn 1,5 с / arbel_back 1,7 с — из пробного поворота, без смены картинок). Повёрнутый к столу
    (arbel.webp) — говорит (talk2), ест (_open, chew), смотрит на яблоко (_look, lookidle), смеётся (laugh). Анфас — моргает
@@ -23,7 +23,7 @@
      KIDS.play(имя, анимация), KIDS.lean(имя, градусы), KIDS.mouth(имя, открыт), KIDS.chew(имя), KIDS.el(имя), KIDS.clear() */
 const KIDS = (() => {
   const FIG = { arbel: 0.0703, beeri: 0.0347, lael: 0.079, shaked: 0.0729 };
-  const FOOT = 1092 / 1152, FOOT_ARBEL = 0.922, FLAP_MS = 150, ANIM_MS = 3000, CHEW_MS = 23 / 12 * 1000, IDLE_MS = [8000, 16000], FADE_MS = 300;
+  const FOOT = 1092 / 1152, FOOT_ARBEL = 0.922, FLAP_MS = 150, ANIM_MS = 3000, CHEW_MS = 23 / 12 * 1000, IDLE_MS = [8000, 16000], LAEL_LOOK_MS = [2500, 5000], FADE_MS = 300;   // Лаэль, глядя на яблоко, моргает и чуть двигается чаще (её lookidle — любимое у автора)
   const GLANCE_EVERY = [6000, 10000], GLANCE_HOLD = [900, 1200];   // ждут: раз в 6–10 с — короткий взгляд (около секунды)
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
   const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_glance']], [['lael', '_right']]];
@@ -93,7 +93,7 @@ const KIDS = (() => {
         else await play(n, Math.random() < 0.5 ? 'blink' : 'peek');   // анфас: моргает или поглядывает на яблоко
       }
       if (el[n]) idleLater(n);
-    }, IDLE_MS[0] + Math.random() * (IDLE_MS[1] - IDLE_MS[0]));
+    }, (([a, b]) => a + Math.random() * (b - a))(n === 'lael' && s.look ? LAEL_LOOK_MS : IDLE_MS));
   }
   function fadeTo(n, url) {                        // плавная смена картинки: старая тает поверх новой
     const im = el[n]; if (!im || im.src.endsWith(url)) return;
