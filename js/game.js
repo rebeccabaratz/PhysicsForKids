@@ -444,7 +444,7 @@ async function partA() {
 async function knifeTap(delay) {                   // ножик светится и ждёт нажатия (через delay мс)
   await wait(delay);
   A.knife.classList.add('tappable'); if (A.halo) A.halo.classList.add('on');
-  KIDS.look(ALL_KIDS, false); KIDS.glances(true);   // ждут — изредка поворачивают голову
+  KIDS.look(ALL_KIDS, true); KIDS.glances(true);    // ждут — смотрят на яблоко, изредка на секунду переглядываются
   await tapOn(A.knife);
   KIDS.glances(false);
   A.knife.classList.remove('tappable'); if (A.halo) A.halo.classList.remove('on');
