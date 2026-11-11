@@ -12,9 +12,8 @@
    beeri_turnA / beeri_turnAback, beeri_turnR / beeri_turnRback — Беэри плавно поворачивает голову к Арбелю (налево) / к Лаэль (направо) и обратно (1,5 с, видео от картинки до _toA).
    <имя>_gasp.webp — ахает: глаза широко, рот «ах!», держит, рот медленно закрывается, в конце лёгкая улыбка (3,6 с: начало видео
    <имя>_gasp.mp4 вперёд и медленно назад — широкая улыбка из конца видео не нужна, автор; клетка и молекула; у Арбеля — анфас).
-   <имя>_tolook / <имя>_fromlook (Лаэль, Шакед, Беэри) — переход «обычная ↔ смотрит на яблоко» без нового видео: у Лаэль и Шакеда
-   склейка на моргании (обычная до закрытых глаз → «смотрит на яблоко» с закрытых глаз), у Беэри — кусок его lookidle,
-   где он сам поднимает и опускает голову.
+   <имя>_tolook / <имя>_fromlook (Лаэль, Шакед, Беэри) — видео «обычная → смотрит на яблоко» и оно же назад (art/kids/<имя>_tolook.mp4).
+   Взгляды на говорящего — видео <имя>_m?.mp4 / beeri_turn?.mp4 (MOVE): от обычной картинки к картинке взгляда; назад — то же наоборот.
    arbel_chew.webp, shaked_chew.webp (запас) — жуёт (1,9 с): начало их «говорит» вперёд и назад, поэтому кончается в позе картинки.
    Анимации по 3 с: <имя>_talk.webp (говорит и показывает рукой — один раз за сцену, {hands: true}),
    <имя>_talk2.webp (говорит: голова и рот, руки спокойно), <имя>_idle.webp (молчит: моргает, дышит),
@@ -36,7 +35,7 @@ const KIDS = (() => {
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
   const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_toR']], [['lael', '_right']]];
   const FRONT = { arbel: true };                   // стоит анфас; к столу — видео turn, обратно — back (st.side — повёрнут к столу)
-  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_upf: 2580, arbel_backfast: 580, beeri_turnA: 1580, beeri_turnAback: 1580, beeri_turnR: 1580, beeri_turnRback: 1580, lael_tolook: 1410, lael_fromlook: 1490, shaked_tolook: 1330, shaked_fromlook: 1330, beeri_tolook: 1740, beeri_fromlook: 1490, lael_gasp: 3650, beeri_gasp: 3650, arbel_gasp: 3650, shaked_gasp: 3650, lael_right: 3080 };
+  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_upf: 2580, arbel_backfast: 580, beeri_turnA: 1580, beeri_turnAback: 1580, beeri_turnR: 1580, beeri_turnRback: 1580, lael_gasp: 3650, beeri_gasp: 3650, arbel_gasp: 3650, shaked_gasp: 3650, lael_right: 3080 };
   const FRONT_ANIMS = ['blink', 'glancef', 'upf', 'turn', 'back', 'backfast', 'peek', 'laughf'];
   const FRONT_IDLE_MS = [3500, 7000];             // анфас Арбель двигается чаще: у него движения короче (1–3 с), чем «стоит» у остальных
   // куда смотрит слушатель, когда говорит [кто]: суффикс картинки; 'side' — Арбель поворачивает голову к столу (там все); нет — не меняется
@@ -48,7 +47,11 @@ const KIDS = (() => {
     shaked: { lael: '_toL', beeri: '_toB' } };                                            // влево-вверх 60°; влево, чуть вверх; на Арбеля — и так влево
   const GAZE_KEEP_MS = 2500;                       // после фразы ещё столько смотрят на говорившего (вдруг заговорит следующий)
   const HAND = { arbel: [0.363, 0.585, 500], shaked: [0.278, 0.58, 420] };   // где в кадре рука с кусочком и через сколько мс она там (видео eat)
-  const LOOKMOVE = { lael: true, shaked: true, beeri: true };   // у кого есть tolook / fromlook
+  const LOOKMOVE = { lael: true, shaked: true, beeri: true };   // у кого есть tolook / fromlook (видео: обычная → смотрит на яблоко; fromlook — оно же назад)
+  // плавные взгляды на говорящего: видео «обычная (у Арбеля — анфас) → картинка взгляда»; <имя>_<анимация>back — то же назад
+  const MOVE = { lael: { _glance: 'mL', _toS: 'mS' }, beeri: { _toA: 'turnA', _toR: 'turnR' },
+    arbel: { _up: 'mU', _right: 'mR' }, shaked: { _toL: 'mL', _toB: 'mB', _glance: 'mV' } };
+  const MOVE_MS = 2080;                            // длина такой анимации (кроме turnA/turnR Беэри — 1580)
   const ANIMS = ['talk2', 'idle', 'lookidle', 'laugh'];   // заранее; «talk» (с жестом) — когда понадобится
   const el = {}, st = {}, blob = {};
   const src = (n, s = '') => `img/kids/${n}${s}.webp`;
@@ -71,6 +74,7 @@ const KIDS = (() => {
     if (n === 'arbel' || n === 'shaked') load(n, 'eat');
     load(n, 'gasp');
     if (LOOKMOVE[n]) { load(n, 'tolook'); load(n, 'fromlook'); }
+    for (const a of Object.values(MOVE[n] || {})) { load(n, a); load(n, a + 'back'); }
     if (n === 'beeri') for (const t of ['turnA', 'turnAback', 'turnR', 'turnRback']) load(n, t);
     if (FRONT[n]) { for (const a of FRONT_ANIMS) load(n, a); new Image().src = src(n, '_front'); new Image().src = src(n); }
     for (const g of Object.values(GAZE[n] || {})) if (g !== 'side') new Image().src = src(n, g);
@@ -82,7 +86,7 @@ const KIDS = (() => {
   /* один круг анимации (обычно 3 с). false — если её перебила другая (тогда картинку не трогаем).
      o.end — какая картинка после (суффикс; иначе still); o.via — последний кадр анимации картинкой, потом плавно к still */
   async function play(n, k, o = {}) {
-    const ms = o.ms ?? DUR[n + '_' + k] ?? ANIM_MS;
+    const ms = o.ms ?? DUR[n + '_' + k] ?? (/^m[A-Z]/.test(k) || /look$/.test(k) ? MOVE_MS : ANIM_MS);
     const im = el[n], s = st[n], b = await load(n, k);
     if (!im || !b || RM) return false;
     const id = ++seq; s.cur = id;
@@ -133,7 +137,7 @@ const KIDS = (() => {
       if (LOOKMOVE[n] && !RM) {                    // плавно (моргание / кусок видео); смотрел на говорящего — сначала обратно
         const g = s.gaze; s.gaze = null;
         (async () => {
-          if (on && n === 'beeri' && (g === '_toR' || g === '_toA')) await play(n, g === '_toR' ? 'turnRback' : 'turnAback', { end: '' });
+          if (g && MOVE[n] && MOVE[n][g]) await play(n, MOVE[n][g] + 'back', { end: '' });
           if (st[n] && st[n].look === on) play(n, on ? 'tolook' : 'fromlook', { via: '' });
         })();
         continue;
@@ -143,6 +147,7 @@ const KIDS = (() => {
     }
   }
   let gT = 0, gLast = -1;
+  const s0 = (g, n) => (g.find(([m]) => m === n) || [])[1];
   function glances(on) {                           // ждут игрока: все смотрят на яблоко (и иногда моргают), изредка — короткий взгляд
     clearTimeout(gT);
     if (!on) { for (const n of Object.keys(el)) if (st[n].gl && st[n].cur === st[n].gl) { fadeTo(n, still(n)); st[n].cur = 0; } return; }
@@ -151,18 +156,19 @@ const KIDS = (() => {
       const g = GLANCES[i];
       if (g.every(([n]) => el[n] && !st[n].talkN && !st[n].chewing)) {   // кто говорит — не отвлекается (моргание прерывается)
         gLast = i; let ms = GLANCE_HOLD[0] + Math.random() * (GLANCE_HOLD[1] - GLANCE_HOLD[0]);
-        if (g.some(([n]) => FRONT[n] || n === 'beeri')) ms = 3300;    // Арбель поворачивается видео (≈3,4 с) — Шакед смотрит столько же
+        if (g.some(([n]) => FRONT[n] || (MOVE[n] && MOVE[n][s0(g, n)]))) ms = 4500;   // туда и обратно видео — дольше    // Арбель поворачивается видео (≈3,4 с) — Шакед смотрит столько же
         for (const [n, s] of g) glance(n, s, ms);
       }
       glances(true);
     }, GLANCE_EVERY[0] + Math.random() * (GLANCE_EVERY[1] - GLANCE_EVERY[0]));
   }
   async function glance(n, suf, ms) {
-    if (n === 'beeri' && suf === '_toR') {         // Беэри: к Лаэль и обратно — видео
-      const s = st[n], was = s.look; s.look = false; fadeTo(n, still(n)); await sleep(FADE_MS);
-      if (!await play(n, 'turnR', { end: '_toR' })) return;
-      const id = ++seq; s.cur = id; await sleep(Math.max(300, ms - 3200)); if (s.cur !== id || !el[n]) return;
-      await play(n, 'turnRback', { via: '' }); if (st[n] && was) look([n], true); return;
+    if (MOVE[n] && MOVE[n][suf]) {                 // взгляд и обратно — видео (Беэри на Лаэль, Шакед на зрителя)
+      const a = MOVE[n][suf], s = st[n], was = s.look; s.look = false;
+      if (was && LOOKMOVE[n]) await play(n, 'fromlook', { end: '' }); else { fadeTo(n, still(n)); await sleep(FADE_MS); }
+      if (!await play(n, a, { end: suf })) return;
+      const id = ++seq; s.cur = id; await sleep(Math.max(300, ms - 4200)); if (s.cur !== id || !el[n]) return;
+      await play(n, a + 'back', { end: '' }); if (st[n] && was) look([n], true); return;
     }
     if (n === 'lael' && suf === '_right') {        // Лаэль: плавный взгляд направо — кусок видео, не смена картинок
       const s = st[n], was = s.look; s.look = false;
@@ -198,13 +204,15 @@ const KIDS = (() => {
       if (s.gaze === g || s.talkN) continue;
       const was = s.gaze; s.gaze = g;
       if (g === 'side') { face(m); continue; }
-      if (m === 'beeri' && !s.look && !s.chewing && !s.cur) {   // Беэри поворачивает голову плавно (видео): к Арбелю _toA, к Лаэль и Шакеду _toR
-        const T = { _toA: 'turnA', _toR: 'turnR' };
-        if (was && T[was] && g !== was) {            // сначала обратно прямо, потом (если надо) к новому
-          (async () => { await play(m, T[was] + 'back', { end: '' }); if (st[m].gaze === g && g && T[g]) play(m, T[g], { end: g }); else fadeTo(m, still(m)); })();
-          continue;
-        }
-        if (T[g]) { play(m, T[g], { end: g }); continue; }
+      if (MOVE[m] && !s.look && !s.chewing && !s.cur) {   // плавно (видео): сначала обратно к обычной, потом к новому взгляду
+        const T = MOVE[m], base = FRONT[m] ? '_front' : '';
+        (async () => {
+          if (FRONT[m] && s.side) { s.side = false; await play(m, 'back', { end: '_front' }); }
+          if (was && T[was]) await play(m, T[was] + 'back', { end: base });
+          if (!st[m] || st[m].gaze !== g) return;
+          if (g && T[g]) await play(m, T[g], { end: g }); else fadeTo(m, still(m));
+        })();
+        continue;
       }
       if (s.look || s.chewing || s.cur) continue;  // занят (смотрит на яблоко, жуёт, анимация) — картинка сменится потом сама
       fadeTo(m, still(m));
