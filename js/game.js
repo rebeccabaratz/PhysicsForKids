@@ -231,7 +231,9 @@ function setCount(n) {
 }
 function placeCounter() {                         // цифра разрезов всегда выше самой верхней точки ножика
   const c = $('#counter'), knifeTop = L.appleY - L.apple * 0.55 - L.apple * 0.31;
-  c.style.top = Math.max(phase === 'A' && P.SHOW_TEXT ? 166 : 100, Math.min(H * 0.19, knifeTop - c.offsetHeight - 8)) + 'px';
+  c.classList.toggle('small', phase === 'A');      // у яблока — мельче и сразу под «איפה אלי?»: не закрывает лица детей
+  if (phase === 'A') { c.style.top = (A.ask ? A.ask.offsetTop + A.ask.offsetHeight + 2 : 96) + 'px'; return; }
+  c.style.top = Math.max(100, Math.min(H * 0.19, knifeTop - c.offsetHeight - 8)) + 'px';
 }
 function tag(text, x, y) {
   const d = document.createElement('div'); d.className = 'tag'; d.textContent = text; stage.appendChild(d);
@@ -421,9 +423,9 @@ async function partA() {
   A.knife = sprite('knife', 'front'); setB(A.knife, L.apple * 0.62);
   A.halo = document.createElement('div'); A.halo.id = 'khalo'; stage.appendChild(A.halo); placeHalo();
   put(A.piece, W / 2, L.appleY); knifeRest();
-  setCount(0);
   A.ask = document.createElement('div'); A.ask.id = 'ask'; A.ask.textContent = T.appleAsk; stage.appendChild(A.ask);
   if (P.SHOW_TEXT) A.ask.style.top = '116px';      // пока фразы видны текстом — «איפה אלי?» ниже них (и цифра разрезов ниже)
+  setCount(0);
   await wait(600);
   for (const l of KA.intro) await kl(l);
   hideSay();

@@ -109,6 +109,8 @@ button:focus-visible{outline:3px solid #fff;outline-offset:3px}
   text-shadow:0 0 24px rgba(255,200,80,.75),0 3px 0 rgba(0,0,0,.35)}
 #ccap{display:block;margin-top:2px;font:700 clamp(22px,6.5vw,32px) var(--font);color:#fff;font-variant-numeric:tabular-nums;
   text-shadow:0 0 14px rgba(120,190,255,.7),0 2px 0 rgba(0,0,0,.35)}
+#counter.small #cnum{font-size:clamp(30px,9vw,40px)}
+#counter.small #ccap{font-size:clamp(14px,4.2vw,18px);margin-top:0}
 /* цель задания: ступенька мерцает */
 .step.target,.stepn.target{animation:target 1s ease-in-out infinite}
 @keyframes target{0%,100%{filter:brightness(1)}50%{filter:brightness(1.75) drop-shadow(0 0 16px #fff)}}

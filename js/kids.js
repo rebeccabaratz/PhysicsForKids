@@ -6,7 +6,7 @@
    Арбель (2026-11-11, по фото) обычно стоит АНФАС (arbel_front.webp = _glance, лицо с портрета). К столу и обратно голова
    поворачивается видео (arbel_turn 1,5 с / arbel_back 1,7 с — из пробного поворота, без смены картинок). Повёрнутый к столу
    (arbel.webp) — говорит (talk2), ест (_open, chew), смотрит на яблоко (_look — кадр 45 arbel_lookidle.mp4, lookidle; _open — кадр 51 arbel_talk2.mp4), смеётся (laugh). Анфас — моргает
-   (arbel_blink), отводит глаза в сторону и обратно (arbel_glancef, из круга глазами), поглядывает на яблоко и обратно (arbel_peek), смеётся (arbel_laughf). Всё из видео art/kids/arbel_*.mp4.
+   (arbel_blink), отводит глаза в сторону и обратно (arbel_glancef), смотрит вверх и обратно (arbel_upf) — из круга глазами, смеётся (arbel_laughf). Всё из видео art/kids/arbel_*.mp4.
    Кто-то говорит — остальные смотрят на него (GAZE): картинки с головой и глазами, повёрнутыми к говорящему.
    arbel_chew.webp, shaked_chew.webp — жуёт (1,9 с): начало их «говорит» вперёд и назад, поэтому кончается в позе картинки.
    Анимации по 3 с: <имя>_talk.webp (говорит и показывает рукой — один раз за сцену, {hands: true}),
@@ -29,8 +29,8 @@ const KIDS = (() => {
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
   const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_glance']], [['lael', '_right']]];
   const FRONT = { arbel: true };                   // стоит анфас; к столу — видео turn, обратно — back (st.side — повёрнут к столу)
-  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_lookidle: 1670, lael_right: 3080 };
-  const FRONT_ANIMS = ['blink', 'glancef', 'turn', 'back', 'peek', 'laughf'];
+  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_upf: 2580, arbel_lookidle: 1670, lael_right: 3080 };
+  const FRONT_ANIMS = ['blink', 'glancef', 'upf', 'turn', 'back', 'peek', 'laughf'];
   const FRONT_IDLE_MS = [3500, 7000];             // анфас Арбель двигается чаще: у него движения короче (1–3 с), чем «стоит» у остальных
   // куда смотрит слушатель, когда говорит [кто]: суффикс картинки; 'side' — Арбель поворачивает голову к столу (там все); нет — не меняется
   // посчитано по положению глаз на экране 390×844: Лаэль (272, 298), Беэри (158, 351), Шакед (334, 408), Арбель (62, 449);
@@ -102,7 +102,7 @@ const KIDS = (() => {
         if (!FRONT[n]) await play(n, s.look ? 'lookidle' : 'idle');
         else if (s.look) await play(n, 'lookidle');
         else if (s.side) home(n, 0);
-        else { const r = Math.random(); await play(n, r < 0.4 ? 'blink' : r < 0.75 ? 'glancef' : 'peek'); }   // анфас: моргает, отводит глаза, поглядывает на яблоко
+        else { const r = Math.random(); await play(n, r < 0.4 ? 'blink' : r < 0.7 ? 'glancef' : 'upf'); }   // анфас: моргает, отводит глаза, смотрит вверх
       }
       if (el[n]) idleLater(n);
     }, (([a, b]) => a + Math.random() * (b - a))(n === 'lael' && s.look ? LAEL_LOOK_MS : FRONT[n] && !s.look ? FRONT_IDLE_MS : IDLE_MS));
