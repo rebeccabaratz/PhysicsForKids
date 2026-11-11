@@ -397,9 +397,9 @@ function fistPos(f, deg, k) {                       // где середина �
   return [hx - (gx * Math.cos(a) - gy * Math.sin(a)), hy - (gx * Math.sin(a) + gy * Math.cos(a))];
 }
 const knifeInFist = (f, deg, k) => put(A.knife, ...fistPos(f, deg, k), k, `rotate(${deg}deg) scaleX(-1)`);
-async function laelStrike() {                       // Лаэль берёт ножик, поднимает и режет (ножик — в её кулаке)
+async function laelStrike(after) {                  // Лаэль берёт ножик, поднимает и режет (ножик — в её кулаке)
   const kn = A.knife, K0 = 0.72;
-  KIDS.look(['beeri', 'arbel', 'shaked'], true);
+  after.then(() => KIDS.look(['beeri', 'arbel', 'shaked'], true));   // досмеялись — смотрят на яблоко
   const lz = KIDS.el('lael'); lz.style.zIndex = '3';   // поднятая рука — перед плечом Беэри
   KIDS.play('lael', 'cut');
   const t0 = performance.now(), fr = () => Math.floor((performance.now() - t0) / 1000 * 12);
@@ -428,12 +428,11 @@ async function partA() {
   await wait(600);
   for (const l of KA.intro) await kl(l);
   hideSay();
-  await KIDS.laugh(['lael', 'beeri', 'arbel', 'shaked']);   // все смеются
-  await kl(KA.what);
-  await kl(KA.maybe);
-  await kl(KA.go, { hands: true });                // единственный жест рукой в сцене
+  const laughing = KIDS.laugh(ALL_KIDS);            // все смеются; Лаэль — «сейчас проверим» и режет, пока остальные ещё смеются
+  await wait(900);
+  await kl(KA.go);
   hideSay();
-  await cutOnce(1, true);                          // первый разрез делает Лаэль
+  await cutOnce(1, laughing);                      // первый разрез делает Лаэль
   for (let i = 1; i <= P.MANUAL_CUTS; i++) {
     if (i > 1) { await knifeTap(0); hideSay(); await cutOnce(i); }
     for (const l of KA.cut[i]) await kl(l);
@@ -449,9 +448,9 @@ async function knifeTap(delay) {                   // ножик светитс�
   KIDS.glances(false);
   A.knife.classList.remove('tappable'); if (A.halo) A.halo.classList.remove('on');
 }
-async function cutOnce(i, byLael) {
+async function cutOnce(i, byLael) {                // byLael — режет Лаэль; это обещание: когда остальным смотреть на яблоко
   const cx = W / 2, kn = A.knife; A.knifeBusy = true;
-  if (byLael) await laelStrike();
+  if (byLael) await laelStrike(byLael);
   else {
     KIDS.look(ALL_KIDS, true);                     // пока режут — все смотрят на яблоко
     await go(kn, { x: cx + L.apple * 0.1, y: L.appleY - L.apple * 0.55, k: 1, ex: '', ms: 320 });   // ножик встаёт над яблоком
