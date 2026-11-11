@@ -428,11 +428,13 @@ async function partA() {
   await wait(600);
   for (const l of KA.intro) await kl(l);
   hideSay();
-  const laughing = KIDS.laugh(ALL_KIDS);            // все смеются; Лаэль — «сейчас проверим» и режет, пока остальные ещё смеются
-  await wait(900);
-  await kl(KA.go);
-  hideSay();
-  await cutOnce(1, laughing);                      // первый разрез делает Лаэль
+  // все смеются; Лаэль, досмеиваясь, говорит «сейчас проверим» и, как только смех кончился, сразу берёт ножик — без паузы
+  const laughing = KIDS.laugh(ALL_KIDS);
+  await wait(1500);
+  const said = say(KA.go[1], { next: false });
+  await laughing;
+  await cutOnce(1, Promise.resolve());             // первый разрез делает Лаэль
+  await said; hideSay();
   for (let i = 1; i <= P.MANUAL_CUTS; i++) {
     if (i > 1) { await knifeTap(0); hideSay(); await cutOnce(i); }
     for (const l of KA.cut[i]) await kl(l);
@@ -473,7 +475,8 @@ async function cutOnce(i, byLael) {                // byLael — режет Ла
   eaten.remove(); const ch = KIDS.chew(who);
   await go(keep, { x: cx, ms: 380 });
   A.piece = keep;
-  if (i === 2) { await ch; await kl(T.kidsApple.yum); }
+  await ch;                                        // сначала дожёвывает — говорить и жевать сразу нельзя
+  if (i === 2) await kl(T.kidsApple.yum);
 }
 async function fastCuts() {
   hideSay();
