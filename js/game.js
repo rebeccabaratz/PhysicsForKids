@@ -406,10 +406,8 @@ async function laelStrike(after) {                  // Лаэль берёт н�
   // ножик со стола прыгает в руку, пока она поднимается
   const [x, y] = fistPos(10, HOLD, K0);
   await go(kn, { x, y, k: K0, ex: `rotate(${HOLD}deg) scaleX(-1)`, ms: 220 });
-  let seen = false;
   for (;;) {                                        // держит над яблоком, потом — удар: острие опускается в яблоко
     const f = fr(); if (f >= FIST.length) break;
-    if (f >= 20 && !seen) { seen = true; KIDS.look(['beeri', 'arbel', 'shaked'], true); }   // смотрят на яблоко, только когда нож пошёл вниз
     knifeInFist(Math.max(f, 10), HOLD + (STRIKE - HOLD) * Math.min(1, Math.max(0, (f - 19) / 4)), K0);
     await new Promise(requestAnimationFrame);
   }
@@ -429,12 +427,12 @@ async function partA() {
   await wait(600);
   for (const l of KA.intro) await kl(l);
   hideSay();
-  // все смеются; Лаэль, досмеиваясь, говорит «сейчас проверим» и, как только смех кончился, сразу берёт ножик — без паузы
+  // все смеются; Лаэль, смеясь, говорит «сейчас проверим» и берёт ножик; остальные досмеиваются и, пока она режет, смех переходит в улыбку
   const laughing = KIDS.laugh(ALL_KIDS);
-  await wait(1500);
+  await wait(1200);
   const said = say(KA.go[1], { next: false });
-  await laughing;
-  await cutOnce(1, Promise.resolve());             // первый разрез делает Лаэль
+  await wait(600);
+  await cutOnce(1, laughing);                      // первый разрез делает Лаэль
   await said; hideSay();
   for (let i = 1; i <= P.MANUAL_CUTS; i++) {
     if (i > 1) { await knifeTap(0); hideSay(); await cutOnce(i); }
@@ -463,6 +461,7 @@ async function cutOnce(i, byLael) {                // byLael — режет Ла
   const img = i <= 3 ? 'apple_' + 2 ** i : 'apple_8';
   const k = (A.piece._k || 1) * 0.86 * (i >= 4 ? 0.6 : 1);
   setCount(i); sfx('cut');
+  const facing = KIDS.face(i % 2 === 1 ? 'arbel' : 'shaked');   // кто будет есть — заранее поворачивается к столу
   A.piece.remove();
   const a = sprite(img), b = sprite(img); setB(a, L.apple); setB(b, L.apple);
   put(a, cx, restY(k), k, 'scaleX(-1)'); put(b, cx, restY(k), k);
@@ -471,6 +470,7 @@ async function cutOnce(i, byLael) {                // byLael — режет Ла
   await Promise.all([go(a, { x: cx - sp, ms: 320 }), go(b, { x: cx + sp, ms: 320 })]);
   const left = i % 2 === 1, eaten = left ? a : b, keep = left ? b : a, who = left ? 'arbel' : 'shaked', [mx, my] = A[who];
   if (i === 2) await kl(T.kidsApple.me);
+  await facing;
   KIDS.look([who], false); KIDS.mouth(who, true); // открывает рот навстречу кусочку
   await go(eaten, { x: mx, y: my, k: k * 0.2, ms: 450, easing: 'ease-in' });
   eaten.remove(); const ch = KIDS.chew(who);

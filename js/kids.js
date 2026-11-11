@@ -6,7 +6,7 @@
    Арбель (2026-11-11, по фото) обычно стоит АНФАС (arbel_front.webp = _glance, лицо с портрета). К столу и обратно голова
    поворачивается видео (arbel_turn 1,5 с / arbel_back 1,7 с — из пробного поворота, без смены картинок). Повёрнутый к столу
    (arbel.webp) — говорит (talk2), ест (_open, chew), смотрит на яблоко (_look — кадр 45 arbel_lookidle.mp4, lookidle; _open — кадр 51 arbel_talk2.mp4), смеётся (laugh). Анфас — моргает
-   (arbel_blink), поглядывает на яблоко и обратно (arbel_peek), смеётся (arbel_laughf). Всё из видео art/kids/arbel_*.mp4.
+   (arbel_blink), отводит глаза в сторону и обратно (arbel_glancef, из круга глазами), поглядывает на яблоко и обратно (arbel_peek), смеётся (arbel_laughf). Всё из видео art/kids/arbel_*.mp4.
    arbel_chew.webp, shaked_chew.webp — жуёт (1,9 с): начало их «говорит» вперёд и назад, поэтому кончается в позе картинки.
    Анимации по 3 с: <имя>_talk.webp (говорит и показывает рукой — один раз за сцену, {hands: true}),
    <имя>_talk2.webp (говорит: голова и рот, руки спокойно), <имя>_idle.webp (молчит: моргает, дышит),
@@ -28,8 +28,9 @@ const KIDS = (() => {
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
   const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_glance']], [['lael', '_right']]];
   const FRONT = { arbel: true };                   // стоит анфас; к столу — видео turn, обратно — back (st.side — повёрнут к столу)
-  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_lookidle: 1670, lael_right: 3080 };
-  const FRONT_ANIMS = ['blink', 'turn', 'back', 'peek', 'laughf'];
+  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_glancef: 2170, arbel_lookidle: 1670, lael_right: 3080 };
+  const FRONT_ANIMS = ['blink', 'glancef', 'turn', 'back', 'peek', 'laughf'];
+  const FRONT_IDLE_MS = [3500, 7000];             // анфас Арбель двигается чаще: у него движения короче (1–3 с), чем «стоит» у остальных
   const ANIMS = ['talk2', 'idle', 'lookidle', 'laugh'];   // заранее; «talk» (с жестом) — когда понадобится
   const el = {}, st = {}, blob = {};
   const src = (n, s = '') => `img/kids/${n}${s}.webp`;
@@ -90,10 +91,10 @@ const KIDS = (() => {
         if (!FRONT[n]) await play(n, s.look ? 'lookidle' : 'idle');
         else if (s.look) await play(n, 'lookidle');
         else if (s.side) home(n, 0);
-        else await play(n, Math.random() < 0.5 ? 'blink' : 'peek');   // анфас: моргает или поглядывает на яблоко
+        else { const r = Math.random(); await play(n, r < 0.4 ? 'blink' : r < 0.75 ? 'glancef' : 'peek'); }   // анфас: моргает, отводит глаза, поглядывает на яблоко
       }
       if (el[n]) idleLater(n);
-    }, (([a, b]) => a + Math.random() * (b - a))(n === 'lael' && s.look ? LAEL_LOOK_MS : IDLE_MS));
+    }, (([a, b]) => a + Math.random() * (b - a))(n === 'lael' && s.look ? LAEL_LOOK_MS : FRONT[n] && !s.look ? FRONT_IDLE_MS : IDLE_MS));
   }
   function fadeTo(n, url) {                        // плавная смена картинки: старая тает поверх новой
     const im = el[n]; if (!im || im.src.endsWith(url)) return;
@@ -147,6 +148,10 @@ const KIDS = (() => {
     if (s.cur !== id || !el[n]) return;
     fadeTo(n, still(n)); s.cur = 0;
   }
+  async function face(n) {                         // анфас Арбель плавно поворачивается к столу (например, чтобы съесть кусочек)
+    const s = st[n]; if (!FRONT[n] || !el[n] || s.side || RM) return;
+    s.side = true; await play(n, 'turn');
+  }
   const mouth = (n, open) => { if (!el[n]) return; st[n].cur = ++seq; if (open && FRONT[n]) st[n].side = true; el[n].src = open ? src(n, '_open') : still(n); if (!open) st[n].cur = 0; };
 
   async function talk(n, text, o = {}) {           // фраза ребёнка: «говорит», пока её видно / слышно
@@ -193,5 +198,5 @@ const KIDS = (() => {
   function at(n, fx, fy) { const im = el[n]; return im ? [im.offsetLeft + fx * im.offsetWidth, im.offsetTop + fy * im.offsetHeight] : [0, 0]; }
   function clear() { clearTimeout(gT); for (const n of Object.keys(el)) { clearTimeout(st[n].idle); el[n].remove(); delete el[n]; } }
   function reset() { clear(); for (const n of Object.keys(st)) delete st[n]; }
-  return { add, talk, lines, laugh, look, glances, play, lean, mouth, chew, at, clear, reset, el: n => el[n] };
+  return { add, face, talk, lines, laugh, look, glances, play, lean, mouth, chew, at, clear, reset, el: n => el[n] };
 })();
