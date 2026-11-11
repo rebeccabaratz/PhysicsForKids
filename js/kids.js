@@ -2,7 +2,7 @@
    Картинки — img/kids/: <имя>.webp (улыбается), <имя>_open.webp (рот открыт — ест),
    <имя>_look.webp (смотрит на яблоко, серьёзно, рот прямой — пока режут),
    <имя>_glance.webp (повернул голову: Лаэль и Беэри — друг к другу, Арбель и Шакед — на зрителя; пока ждут нажатия),
-   lael_right.webp (Лаэль смотрит направо — кадр из её «говорит», рот закрыт); у Лаэль _glance — картинка (в её видео она влево не смотрит), правый глаз сдвинут от носа вручную.
+   lael_right.webp (Лаэль плавно смотрит направо, моргает и возвращается — 3 с из её «стоит», анимация); у Лаэль _glance — картинка (в её видео она влево не смотрит), правый глаз сдвинут от носа вручную.
    Арбель (2026-11-11, по фото) обычно стоит АНФАС (arbel_front.webp = _glance, лицо с портрета). К столу и обратно голова
    поворачивается видео (arbel_turn 1,5 с / arbel_back 1,7 с — из пробного поворота, без смены картинок). Повёрнутый к столу
    (arbel.webp) — говорит (talk2), ест (_open, chew), смотрит на яблоко (_look, lookidle), смеётся (laugh). Анфас — моргает
@@ -28,7 +28,7 @@ const KIDS = (() => {
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
   const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_glance']], [['lael', '_right']]];
   const FRONT = { arbel: true };                   // стоит анфас; к столу — видео turn, обратно — back (st.side — повёрнут к столу)
-  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_lookidle: 1670 };
+  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_lookidle: 1670, lael_right: 3080 };
   const FRONT_ANIMS = ['blink', 'turn', 'back', 'peek', 'laughf'];
   const ANIMS = ['talk2', 'idle', 'lookidle', 'laugh'];   // заранее; «talk» (с жестом) — когда понадобится
   const el = {}, st = {}, blob = {};
@@ -51,7 +51,7 @@ const KIDS = (() => {
     if (n === 'lael') load(n, 'cut');
     if (n === 'arbel' || n === 'shaked') load(n, 'chew');
     if (FRONT[n]) { for (const a of FRONT_ANIMS) load(n, a); new Image().src = src(n, '_front'); new Image().src = src(n); }
-    new Image().src = src(n, '_glance'); if (n === 'lael') new Image().src = src(n, '_right');
+    new Image().src = src(n, '_glance'); if (n === 'lael') load(n, 'right');
     idleLater(n);
     return im;
   }
@@ -127,6 +127,12 @@ const KIDS = (() => {
     }, GLANCE_EVERY[0] + Math.random() * (GLANCE_EVERY[1] - GLANCE_EVERY[0]));
   }
   async function glance(n, suf, ms) {
+    if (n === 'lael' && suf === '_right') {        // Лаэль: плавный взгляд направо — кусок видео, не смена картинок
+      const s = st[n], was = s.look; s.look = false;
+      fadeTo(n, still(n)); await sleep(FADE_MS);
+      await play(n, 'right', { via: '' });
+      if (st[n] && was) look([n], true); return;
+    }
     if (FRONT[n]) {                                // Арбель: от стола к зрителю и обратно — видео, не смена картинок
       const s = st[n]; if (!s.side) return;
       s.side = false;
