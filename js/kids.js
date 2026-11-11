@@ -34,7 +34,7 @@ const KIDS = (() => {
   const FOOT = 1092 / 1152, FOOT_ARBEL = 0.972, FLAP_MS = 150, ANIM_MS = 3000, CHEW_MS = 23 / 12 * 1000, IDLE_MS = [8000, 16000], LAEL_LOOK_MS = [2500, 5000], FADE_MS = 300;   // Лаэль, глядя на яблоко, моргает и чуть двигается чаще (её lookidle — любимое у автора)
   const GLANCE_EVERY = [6000, 10000], GLANCE_HOLD = [900, 1200];   // ждут: раз в 6–10 с — короткий взгляд (около секунды)
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
-  const GLANCES = [   // Арбель+Шакед на зрителя убрано: видео поворота Шакеда к зрителю неудачное (автор)
+  const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']],   // Шакед к зрителю — новое видео (голова не поднимается), лицо как на картинке со скрещёнными руками
     [['lael', '_glance'], ['beeri', '_toR']], [['lael', '_right']]];
   const FRONT = { arbel: true };                   // стоит анфас; к столу — видео turn, обратно — back (st.side — повёрнут к столу)
   const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 3150, arbel_glancef: 2170, arbel_upf: 2580, arbel_backfast: 580, beeri_turnA: 1580, beeri_turnAback: 1580, beeri_turnR: 1580, beeri_turnRback: 1580, shaked_tolook: 1910, shaked_fromlook: 1910, shaked_lookidle: 1910, lael_tolook: 2240, lael_fromlook: 2240, lael_lookidle: 1330, lael_gasp: 2320, beeri_gasp: 2320, arbel_gasp: 2320, shaked_gasp: 2320, lael_right: 3080 };
