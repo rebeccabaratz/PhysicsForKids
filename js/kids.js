@@ -3,8 +3,10 @@
    <имя>_look.webp (смотрит на яблоко, серьёзно, рот прямой — пока режут),
    <имя>_glance.webp (повернул голову: Лаэль и Беэри — друг к другу, Арбель и Шакед — на зрителя; пока ждут нажатия),
    lael_right.webp (Лаэль смотрит направо — кадр из её «говорит», рот закрыт); у Лаэль _glance — картинка (в её видео она влево не смотрит).
-   Арбель (2026-11-11, по фото): тело анфас, голова чуть к столу; всё из одного кадра видео, _glance — тот же Арбель анфас
-   (лицо с портрета), _look и lookidle — из видео «смотрит на яблоко» (lookidle: вперёд до моргания и назад).
+   Арбель (2026-11-11, по фото) обычно стоит АНФАС (arbel_front.webp = _glance, лицо с портрета). К столу и обратно голова
+   поворачивается видео (arbel_turn 1,5 с / arbel_back 1,7 с — из пробного поворота, без смены картинок). Повёрнутый к столу
+   (arbel.webp) — говорит (talk2), ест (_open, chew), смотрит на яблоко (_look, lookidle), смеётся (laugh). Анфас — моргает
+   (arbel_blink), поглядывает на яблоко и обратно (arbel_peek), смеётся (arbel_laughf). Всё из видео art/kids/arbel_*.mp4.
    arbel_chew.webp, shaked_chew.webp — жуёт (1,9 с): начало их «говорит» вперёд и назад, поэтому кончается в позе картинки.
    Анимации по 3 с: <имя>_talk.webp (говорит и показывает рукой — один раз за сцену, {hands: true}),
    <имя>_talk2.webp (говорит: голова и рот, руки спокойно), <имя>_idle.webp (молчит: моргает, дышит),
@@ -25,10 +27,13 @@ const KIDS = (() => {
   const GLANCE_EVERY = [6000, 10000], GLANCE_HOLD = [900, 1200];   // ждут: раз в 6–10 с — короткий взгляд (около секунды)
   // ждут: Арбель и Шакед вместе — на зрителя; Лаэль и Беэри — друг на друга; Лаэль — направо (не одно и то же два раза подряд)
   const GLANCES = [[['arbel', '_glance'], ['shaked', '_glance']], [['lael', '_glance'], ['beeri', '_glance']], [['lael', '_right']]];
+  const FRONT = { arbel: true };                   // стоит анфас; к столу — видео turn, обратно — back (st.side — повёрнут к столу)
+  const DUR = { arbel_blink: 1250, arbel_turn: 1500, arbel_back: 1670, arbel_peek: 3080, arbel_laughf: 2920, arbel_lookidle: 2750 };
+  const FRONT_ANIMS = ['blink', 'turn', 'back', 'peek', 'laughf'];
   const ANIMS = ['talk2', 'idle', 'lookidle', 'laugh'];   // заранее; «talk» (с жестом) — когда понадобится
   const el = {}, st = {}, blob = {};
   const src = (n, s = '') => `img/kids/${n}${s}.webp`;
-  const still = n => src(n, st[n] && st[n].look ? '_look' : '');
+  const still = n => { const s = st[n]; return src(n, s && s.look ? '_look' : FRONT[n] && !(s && s.side) ? '_front' : ''); };
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const load = (n, k) => blob[n + k] || (blob[n + k] = fetch(src(n, '_' + k)).then(r => r.ok ? r.blob() : null).then(b => b && b.size ? b : null).catch(() => null));
 
@@ -39,19 +44,22 @@ const KIDS = (() => {
     im._foot = o.top + o.h;
     if (o.clip != null) im.style.clipPath = `inset(0 0 ${Math.max(0, o.top - FIG[n] * hc + hc - o.clip)}px 0)`;   // за столом: ниже края стола не видно
     stage.appendChild(im); el[n] = im;
-    const old = st[n]; st[n] = { cur: 0, talkN: 0, loop: null, idle: 0, look: old ? old.look : false };
-    if (st[n].look) im.src = still(n);
+    const old = st[n]; st[n] = { cur: 0, talkN: 0, loop: null, idle: 0, look: old ? old.look : false, side: old ? old.side : false };
+    im.src = still(n);
     // анимации — файлами в память один раз; каждый показ — новый адрес, чтобы анимация шла с первого кадра
     for (const k of ANIMS) load(n, k);
     if (n === 'lael') load(n, 'cut');
     if (n === 'arbel' || n === 'shaked') load(n, 'chew');
+    if (FRONT[n]) { for (const a of FRONT_ANIMS) load(n, a); new Image().src = src(n, '_front'); new Image().src = src(n); }
     new Image().src = src(n, '_glance'); if (n === 'lael') new Image().src = src(n, '_right');
     idleLater(n);
     return im;
   }
   let seq = 0;
-  /* один круг анимации (3 с). false — если её перебила другая (тогда картинку не трогаем) */
-  async function play(n, k, ms = ANIM_MS) {
+  /* один круг анимации (обычно 3 с). false — если её перебила другая (тогда картинку не трогаем).
+     o.end — какая картинка после (суффикс; иначе still); o.via — последний кадр анимации картинкой, потом плавно к still */
+  async function play(n, k, o = {}) {
+    const ms = o.ms ?? DUR[n + '_' + k] ?? ANIM_MS;
     const im = el[n], s = st[n], b = await load(n, k);
     if (!im || !b || RM) return false;
     const id = ++seq; s.cur = id;
@@ -59,13 +67,31 @@ const KIDS = (() => {
     await sleep(ms);
     URL.revokeObjectURL(url);
     if (s.cur !== id || !im.isConnected) return false;
-    s.cur = 0; im.src = still(n); return true;
+    s.cur = 0;
+    if (o.end != null) im.src = src(n, o.end);
+    else if (o.via != null) { im.src = src(n, o.via); fadeTo(n, still(n)); }
+    else im.src = still(n);
+    return true;
+  }
+  function home(n, delay = 700) {                  // повёрнутый к столу (не занят) — плавно обратно анфас
+    if (!FRONT[n]) return;
+    setTimeout(async () => {
+      const s = st[n]; if (!el[n] || !s.side || s.look) return;
+      if (s.cur || s.talkN || s.chewing) { home(n, 700); return; }
+      s.side = false;
+      if (!await play(n, 'back') && st[n] && !st[n].look) st[n].side = true;
+    }, delay);
   }
   function idleLater(n) {                          // молчит — иногда моргает
     const s = st[n]; clearTimeout(s.idle);
     s.idle = setTimeout(async () => {
       if (!el[n]) return;
-      if (!s.cur && !s.talkN) await play(n, s.look ? 'lookidle' : 'idle');
+      if (!s.cur && !s.talkN && !s.chewing) {
+        if (!FRONT[n]) await play(n, s.look ? 'lookidle' : 'idle');
+        else if (s.look) await play(n, 'lookidle');
+        else if (s.side) home(n, 0);
+        else await play(n, Math.random() < 0.5 ? 'blink' : 'peek');   // анфас: моргает или поглядывает на яблоко
+      }
       if (el[n]) idleLater(n);
     }, IDLE_MS[0] + Math.random() * (IDLE_MS[1] - IDLE_MS[0]));
   }
@@ -80,7 +106,9 @@ const KIDS = (() => {
       const s = st[n]; if (!s || s.look === on) continue;
       if (s.chewing) { s.look = on; continue; }   // дожёвывает; потом сам посмотрит куда нужно
       s.look = on; s.cur = ++seq;                  // перебивает анимацию; круг «говорит» прекратится
+      if (FRONT[n] && on && !s.side) { s.side = true; play(n, 'turn', { via: '' }); continue; }   // анфас — поворачивается к столу
       fadeTo(n, still(n)); s.cur = 0;
+      if (FRONT[n] && !on) home(n, 900);
     }
   }
   let gT = 0, gLast = -1;
@@ -91,24 +119,34 @@ const KIDS = (() => {
       let i; do i = Math.floor(Math.random() * GLANCES.length); while (i === gLast);
       const g = GLANCES[i];
       if (g.every(([n]) => el[n] && !st[n].talkN && !st[n].chewing)) {   // кто говорит — не отвлекается (моргание прерывается)
-        gLast = i; const ms = GLANCE_HOLD[0] + Math.random() * (GLANCE_HOLD[1] - GLANCE_HOLD[0]);
+        gLast = i; let ms = GLANCE_HOLD[0] + Math.random() * (GLANCE_HOLD[1] - GLANCE_HOLD[0]);
+        if (g.some(([n]) => FRONT[n])) ms = 3300;    // Арбель поворачивается видео (≈3,4 с) — Шакед смотрит столько же
         for (const [n, s] of g) glance(n, s, ms);
       }
       glances(true);
     }, GLANCE_EVERY[0] + Math.random() * (GLANCE_EVERY[1] - GLANCE_EVERY[0]));
   }
   async function glance(n, suf, ms) {
+    if (FRONT[n]) {                                // Арбель: от стола к зрителю и обратно — видео, не смена картинок
+      const s = st[n]; if (!s.side) return;
+      s.side = false;
+      if (!await play(n, 'back', { end: '_front' })) { if (st[n]) st[n].side = true; return; }
+      const id = ++seq; s.cur = s.gl = id; await sleep(200);
+      if (s.cur !== id || !el[n]) return;
+      s.side = true; await play(n, 'turn', { via: '' }); return;
+    }
     const s = st[n], id = ++seq; s.cur = s.gl = id;
     fadeTo(n, src(n, suf));
     await sleep(ms);
     if (s.cur !== id || !el[n]) return;
     fadeTo(n, still(n)); s.cur = 0;
   }
-  const mouth = (n, open) => { if (!el[n]) return; st[n].cur = ++seq; el[n].src = open ? src(n, '_open') : still(n); if (!open) st[n].cur = 0; };
+  const mouth = (n, open) => { if (!el[n]) return; st[n].cur = ++seq; if (open && FRONT[n]) st[n].side = true; el[n].src = open ? src(n, '_open') : still(n); if (!open) st[n].cur = 0; };
 
   async function talk(n, text, o = {}) {           // фраза ребёнка: «говорит», пока её видно / слышно
     const im = el[n], s = st[n]; if (!im) { await say(text, { next: false }); return; }
     if (s.look) look([n], false);                  // говорит — поднимает глаза на остальных
+    if (FRONT[n] && !s.side && !RM) { s.side = true; await play(n, 'turn'); }   // Арбель говорит, повернувшись к столу
     const k = o.hands ? 'talk' : 'talk2';
     const anim = await load(n, k);
     if (!anim || RM) {                             // анимации нет — рот открывается и закрывается
@@ -120,13 +158,15 @@ const KIDS = (() => {
     if (!s.loop) s.loop = (async () => { let kk = k; while (s.talkN > 0 && await play(n, kk)) kk = 'talk2'; s.loop = null; })();
     await say(text, { next: false });
     s.talkN--;                                     // круг «говорит» доиграет сам, следующая фраза не ждёт
+    home(n, 1500);
   }
   async function lines(list) { for (const [n, t] of list) await talk(n, t); }
 
   async function laugh(names) {                    // все смеются (3 с); без движения на экране — просто пауза
     if (RM) { await wait(1200); return; }
     look(names, false);
-    await Promise.all(names.map(n => play(n, 'laugh')));
+    await Promise.all(names.map(n => play(n, FRONT[n] && !st[n].side ? 'laughf' : 'laugh')));
+    for (const n of names) home(n);
   }
   function lean(n, deg, ms = 1100) {               // наклониться к столу и выпрямиться (вращение вокруг ног)
     const im = el[n]; if (!im) return Promise.resolve();
@@ -137,7 +177,7 @@ const KIDS = (() => {
   async function chew(n) {                         // жуёт: анимация из кадров видео; без неё — рот закрыт — открыт, три раза
     if (!RM && await load(n, 'chew')) {
       for (const t of [0, 600, 1200]) setTimeout(() => el[n] && sfx('chomp'), t);
-      st[n].chewing = true; await play(n, 'chew', CHEW_MS); if (st[n]) st[n].chewing = false; return;
+      st[n].chewing = true; await play(n, 'chew', { ms: CHEW_MS }); if (st[n]) st[n].chewing = false; home(n); return;
     }
     for (let i = 0; i < 3 && el[n]; i++) { mouth(n, false); sfx('chomp'); await wait(170); mouth(n, true); await wait(170); }
     mouth(n, false);
