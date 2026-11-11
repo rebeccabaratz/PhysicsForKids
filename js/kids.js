@@ -188,7 +188,8 @@ const KIDS = (() => {
     }
     if (n === 'lael' && suf === '_right') {        // Лаэль: плавный взгляд направо — кусок видео, не смена картинок
       const s = st[n], was = s.look; s.look = false;
-      fadeTo(n, still(n)); await sleep(FADE_MS);
+      if (was) await play(n, 'fromlook', { end: '' });   // смотрела на яблоко — плавно поднимает голову (не скачком)
+      else { fadeTo(n, still(n)); await sleep(FADE_MS); }
       await play(n, 'right', { via: '' });
       if (st[n] && was) look([n], true); return;
     }
